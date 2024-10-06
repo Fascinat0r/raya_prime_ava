@@ -11,5 +11,8 @@ urllib3==2.2.3
 wheel==0.44.0
 
 fastdtw~=0.3.4
-librosa~=0.10.2.post1
+librosa~=0.10.0
 noisereduce~=3.0.3
+soundfile~=0.12.1
+pydub~=0.25.1
+matplotlib~=3.9.2

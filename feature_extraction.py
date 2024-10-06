@@ -1,15 +1,21 @@
-import librosa
 import pickle
-import numpy as np
-import os
+
+import librosa
 
 
 # Извлечение MFCC и дополнительных признаков
 def extract_mfcc(audio_data):
-    y, sr = audio_data
-    # Извлечение MFCC
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    return mfcc
+    try:
+        y, sr = audio_data
+        # Проверка на слишком короткие сегменты
+        if len(y) < 2048:
+            raise ValueError("Аудио слишком короткое для извлечения MFCC.")
+
+        # Извлечение MFCC
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        return mfcc
+    except Exception as e:
+        raise RuntimeError(f"Ошибка при извлечении MFCC: {e}")
 
 
 # Сохранение MFCC в файл

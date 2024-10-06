@@ -9,7 +9,7 @@ from preprocessing import preprocess_audio
 
 
 # Функция поиска совпадений в аудиофайлах
-def find_matching_segments(reference_mfcc, folder_path, output_file, threshold=100):
+def find_matching_segments(reference_mfcc, folder_path, output_file, threshold=50):
     results = {}
 
     for filename in os.listdir(folder_path):
@@ -26,16 +26,24 @@ def find_matching_segments(reference_mfcc, folder_path, output_file, threshold=1
                 continue
 
             # Сравнение эталонного и целевого MFCC
-            distance, _ = fastdtw(reference_mfcc.T, target_mfcc.T, dist=euclidean)
-            similarity = 100 * max(0, 1 - (distance / threshold))  # Процент совпадения
+            try:
+                distance, _ = fastdtw(reference_mfcc.T, target_mfcc.T, dist=euclidean)
+                similarity = 100 * max(0, 1 - (distance / threshold))  # Процент совпадения
+            except Exception as e:
+                logging.error(f"Ошибка при сравнении MFCC для файла {file_path}: {e}")
+                continue
 
-            if similarity > 50:  # Записываем только если совпадение выше 50%
+            if similarity > 10:  # Записываем только если совпадение выше 10%
                 logging.info(f"Найдено совпадение в {filename} с уровнем {similarity:.2f}%")
                 results[filename] = similarity
             else:
                 logging.info(f"Совпадений не найдено в {filename}")
 
     # Запись результатов в файл
-    with open(output_file, 'w') as f:
-        for file, sim in results.items():
-            f.write(f"Файл: {file}, Совпадение: {sim:.2f}%\n")
+    try:
+        with open(output_file, 'w') as f:
+            for file, sim in results.items():
+                f.write(f"Файл: {file}, Совпадение: {sim:.2f}%\n")
+        logging.info(f"Результаты сохранены в файл: {output_file}")
+    except Exception as e:
+        logging.error(f"Ошибка при сохранении результатов в файл {output_file}: {e}")

@@ -1,8 +1,10 @@
 import logging
 import os
 
+from neural_search import find_segments_with_neural_search
+
 from config import REFERENCE_VOICE_PATH, AUDIO_FOLDER_PATH, MFCC_SAVE_PATH, OUTPUT_FILE, THRESHOLD
-from feature_extraction import extract_mfcc, load_mfcc, save_mfcc
+from feature_extraction import extract_mfcc, save_mfcc, load_mfcc
 from matching import find_matching_segments
 from preprocessing import preprocess_audio
 
@@ -23,6 +25,7 @@ def main():
 
     # 2. Поиск совпадений по аудиофайлам в папке
     find_matching_segments(reference_mfcc, AUDIO_FOLDER_PATH, OUTPUT_FILE, threshold=THRESHOLD)
+    find_segments_with_neural_search(REFERENCE_VOICE_PATH, AUDIO_FOLDER_PATH, OUTPUT_FILE)
 
 
 if __name__ == '__main__':
