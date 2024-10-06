@@ -1,0 +1,11 @@
+numpy<=2.0
+packaging==24.1
+pip==24.2
+platformdirs==4.3.6
+pycparser==2.22
+scipy==1.14.1
+setuptools==75.1.0
+threadpoolctl==3.5.0
+typing-extensions==4.12.2
+urllib3==2.2.3
+wheel==0.44.0
