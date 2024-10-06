@@ -9,3 +9,7 @@ threadpoolctl==3.5.0
 typing-extensions==4.12.2
 urllib3==2.2.3
 wheel==0.44.0
+
+fastdtw~=0.3.4
+librosa~=0.10.2.post1
+noisereduce~=3.0.3
