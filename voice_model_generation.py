@@ -1,0 +1,143 @@
+import os
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+import librosa
+import numpy as np
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.optimizers import Adam
+
+from utils.my_logger import logger
+from voice_model_generation.data_loader import load_all_files
+from voice_model_generation.model import create_siamese_network
+from voice_model_generation.preprocessing import extract_audio_segments, normalize_segments
+from voice_model_generation.train_test import contrastive_loss, plot_confusion_matrix, get_early_stopping_callback
+
+# Пути к данным
+BASE_DIR = os.path.dirname(__file__)
+RAYA_VOICE_PATH = os.path.join(BASE_DIR, "downloads", "raya_references")
+OTHER_VOICES_PATH = os.path.join(BASE_DIR, "downloads", "other_references")
+NOISES_PATH = os.path.join(BASE_DIR, "downloads", "noises")
+
+
+def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=16000):
+    """Формирует пары данных для обучения."""
+    logger.info("Подготовка данных...")
+
+    # Если файлы уже загружены как массивы, не загружаем повторно
+    raya_segments = extract_audio_segments_from_array(raya_files, sr, segment_length) if isinstance(raya_files[0],
+                                                                                                    np.ndarray) else extract_audio_segments(
+        raya_files, sr, segment_length)
+    other_segments = extract_audio_segments_from_array(other_files, sr, segment_length) if isinstance(other_files[0],
+                                                                                                      np.ndarray) else extract_audio_segments(
+        other_files, sr, segment_length)
+    noise_segments = extract_audio_segments_from_array(noise_files, sr, segment_length) if isinstance(noise_files[0],
+                                                                                                      np.ndarray) else extract_audio_segments(
+        noise_files, sr, segment_length)
+
+    # Нормализация количества сегментов
+    raya_segments, other_segments, noise_segments = normalize_segments(raya_segments, other_segments, noise_segments)
+
+    x1, x2, y = [], [], []
+
+    # Положительные пары (голос Райи — голос Райи)
+    for seg in raya_segments:
+        x1.append(seg)
+        x2.append(seg)
+        y.append(1)
+
+    # Отрицательные пары (голос Райи — другой голос)
+    for seg_raya, seg_other in zip(raya_segments, other_segments):
+        x1.append(seg_raya)
+        x2.append(seg_other)
+        y.append(0)
+
+    # Шумовые пары (голос Райи — шум)
+    for seg_raya, seg_noise in zip(raya_segments, noise_segments):
+        x1.append(seg_raya)
+        x2.append(seg_noise)
+        y.append(0)
+
+    return np.array(x1), np.array(x2), np.array(y)
+
+
+def extract_audio_segments_from_array(audio_array_list, sr=16000, segment_length=2):
+    """
+    Разделяет уже загруженные аудиофайлы (массивы) на сегменты фиксированной длины.
+
+    Args:
+        audio_array_list (list): Список numpy массивов.
+        sr (int): Частота дискретизации.
+        segment_length (int): Длина сегмента в секундах.
+
+    Returns:
+        list: Список сегментов.
+    """
+    logger.info(
+        f"Извлечение аудиосегментов из {len(audio_array_list)} загруженных массивов с частотой {sr} и длиной сегмента {segment_length} сек.")
+    step = int(segment_length * sr)
+    segments = []
+
+    for audio in audio_array_list:
+        for start in range(0, len(audio) - step, step // 2):
+            segment = audio[start:start + step]
+            if len(segment) == step:
+                segments.append(segment)
+
+    return segments
+
+
+def voice_model_generation():
+    logger.info("Запуск основного процесса создания модели распознавания голоса...")
+
+    # Загрузка данных
+    raya_files, _ = load_all_files(RAYA_VOICE_PATH)
+    other_files, _ = load_all_files(OTHER_VOICES_PATH)
+    noise_files, _ = load_all_files(NOISES_PATH)
+
+    # Генерация данных
+    x1, x2, y = prepare_data(raya_files, other_files, noise_files)
+
+    # Преобразование в MFCC
+    logger.info("Преобразование аудиосегментов в MFCC...")
+    sr = 16000
+    x1_mfcc = [(librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T[:50] - np.mean(s)) / (np.std(s) + 1e-10) for s in x1]
+    x2_mfcc = [(librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T[:50] - np.mean(s)) / (np.std(s) + 1e-10) for s in x2]
+    x1_mfcc = np.array(x1_mfcc)
+    x2_mfcc = np.array(x2_mfcc)
+
+    logger.info(f"Общая размерность данных: {len(x1_mfcc)} пар")
+
+    # Разделение данных на обучающую и тестовую выборку
+    x1_train, x1_test, x2_train, x2_test, y_train, y_test = train_test_split(x1_mfcc, x2_mfcc, y, test_size=0.2,
+                                                                             random_state=42)
+
+    # Создание архитектуры сиамской сети
+    input_shape = x1_train.shape[1:]
+    model = create_siamese_network(input_shape)
+
+    # Компиляция модели
+    optimizer = Adam(learning_rate=0.0001)
+    model.compile(optimizer=optimizer, loss=contrastive_loss)
+
+    # Обучение модели с EarlyStopping
+    logger.info("Начало обучения модели...")
+    early_stopping = get_early_stopping_callback(patience=5)
+    model.fit([x1_train, x2_train], y_train, batch_size=32, epochs=20, validation_split=0.2, callbacks=[early_stopping])
+
+    # Тестирование модели
+    logger.info("Проверка модели...")
+    y_pred = model.predict([x1_test, x2_test])
+    y_pred_labels = (y_pred < 0.5).astype(int)
+
+    # Построение матрицы ошибок
+    logger.info("Построение матрицы ошибок...")
+    plot_confusion_matrix(y_test, y_pred_labels)
+
+    # Сохранение модели
+    logger.info("Сохранение модели...")
+    model.save('models/voice_recognition_model_v1.keras')
+    logger.info("Модель успешно сохранена как voice_recognition_model_v1.keras")
+
+
+if __name__ == "__main__":
+    voice_model_generation()
