@@ -1,11 +1,14 @@
+import os
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import librosa
+import librosa.util  # Импортируем util из librosa для работы с длиной MFCC
 import numpy as np
 import tensorflow as tf
 from joblib import Parallel, delayed
 from scipy.spatial.distance import cosine
 
 from utils.my_logger import logger
-from voice_model_generation.model import cosine_distance
 
 
 def process_audio_segment(segment, model, reference_vector, sr=16000, n_mfcc=13):
@@ -105,9 +108,9 @@ def find_matching_segments(audio_path, model_path, reference_audio_path, thresho
 if __name__ == "__main__":
     # Пример использования:
     result = find_matching_segments(
-        audio_path="audio_test.wav",
-        model_path="models/voice_recognition_model.keras",
-        reference_audio_path="reference_raya.wav",
+        audio_path="E:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #10 ЖИВОЙ РОБОТ • Майнкрафт.wav",
+        model_path="models/voice_recognition_model_v1.keras",
+        reference_audio_path="downloads/raya_references/Lp. Идеальный МИР #30 НОВЫЙ ПЕРСОНАЖ • Майнкрафт.wav",
         threshold=0.3,
         segment_length=2
     )
