@@ -24,7 +24,7 @@ def create_base_network(input_shape):
 
 
 # Функция для вычисления косинусного расстояния
-# Функция для вычисления косинусного расстояния с явным указанием формы вывода
+@tf.keras.utils.register_keras_serializable
 def cosine_distance(vectors):
     """Возвращает косинусное расстояние между двумя векторами."""
     x, y = vectors

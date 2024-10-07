@@ -134,7 +134,7 @@ def voice_model_generation():
     # Разделение данных на обучающую и тестовую выборку
     x1_train, x1_test, x2_train, x2_test, y_train, y_test = train_test_split(x1_mfcc, x2_mfcc, y, test_size=0.2,
                                                                              random_state=42)
-
+    np.save("models/reference_mfcc.npy", x1_train)
     # Создание архитектуры сиамской сети
     input_shape = x1_train.shape[1:]
     model = create_siamese_network(input_shape)

@@ -4,6 +4,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
 # Контрастная функция потерь для обучения SNN
+@tf.keras.utils.register_keras_serializable
 def contrastive_loss(y_true, y_pred, margin=1.0):
     """
     Контрастная функция потерь с улучшенной стабильностью.
