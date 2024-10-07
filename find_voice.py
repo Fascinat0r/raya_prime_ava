@@ -22,13 +22,18 @@ def load_audio_file(file_path, target_sr=16000):
 def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, batch_size=32):
     # Загрузка модели
     logger.info(f"Загрузка модели: {model_path}")
+    # Используем custom_objects для регистрации функций
     model = tf.keras.models.load_model(model_path, custom_objects={'cosine_distance': cosine_distance,
                                                                    "contrastive_loss": contrastive_loss})
 
     # Загрузка эталонных MFCC
     logger.info(f"Загрузка эталонных MFCC из {reference_mfcc_path}")
     reference_mfcc = np.load(reference_mfcc_path)
-    reference_mfcc = np.expand_dims(reference_mfcc, axis=0)  # Добавляем размерность батча
+    logger.info(f"Форма эталонных MFCC: {reference_mfcc.shape}")
+
+    # Усреднение эталонных MFCC по сегментам
+    reference_mfcc_mean = np.mean(reference_mfcc, axis=0)  # Теперь форма (63, 13)
+    logger.info(f"Форма усредненного эталонного MFCC: {reference_mfcc_mean.shape}")
 
     # Загрузка тестового аудиофайла
     logger.info(f"Загрузка тестового аудиофайла: {test_voice_path}")
@@ -48,11 +53,7 @@ def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, bat
 
     # Преобразование каждого сегмента в MFCC
     test_mfccs = np.array([librosa.feature.mfcc(y=segment, sr=16000, n_mfcc=13).T for segment in test_segments])
-
-    # Проверка на размерности MFCC
-    if reference_mfcc.shape[1] != test_mfccs.shape[1]:
-        logger.warning(f"Несоответствие размеров MFCC. Эталон: {reference_mfcc.shape[1]}, Тест: {test_mfccs.shape[1]}")
-        return
+    logger.info(f"Форма тестовых MFCC: {test_mfccs.shape}")
 
     # Итеративное предсказание по сегментам
     logger.info(f"Применение модели для {len(test_mfccs)} сегментов...")
@@ -63,12 +64,19 @@ def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, bat
         end = min(start + batch_size, len(test_mfccs))
         test_batch = test_mfccs[start:end]
 
-        # Повторяем эталонный MFCC для каждого сегмента в текущем батче
-        reference_batch = np.repeat(reference_mfcc, len(test_batch), axis=0)
+        # Повторяем усредненный эталонный MFCC по первому измерению (формат [batch_size, 63, 13])
+        reference_batch = np.tile(np.expand_dims(reference_mfcc_mean, axis=0), (len(test_batch), 1, 1))
 
-        # Выполняем предсказание для текущего батча
-        batch_scores = model.predict([reference_batch, test_batch], verbose=0)
-        scores.extend(batch_scores)
+        # Проверка размерности reference_batch и test_batch
+        logger.info(f"Размерность reference_batch: {reference_batch.shape}, Размерность test_batch: {test_batch.shape}")
+
+        try:
+            # Использование кортежа (reference_batch, test_batch)
+            batch_scores = model.predict([reference_batch, test_batch], verbose=0)
+            scores.extend(batch_scores)
+        except ValueError as e:
+            logger.error(f"Ошибка при предсказании: {e}")
+            return
 
         logger.info(f"Обработано сегментов: {end}/{len(test_mfccs)}")
 
