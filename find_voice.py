@@ -19,7 +19,7 @@ def load_audio_file(file_path, target_sr=16000):
         return None
 
 
-def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path):
+def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, batch_size=32):
     # Загрузка модели
     logger.info(f"Загрузка модели: {model_path}")
     model = tf.keras.models.load_model(model_path, custom_objects={'cosine_distance': cosine_distance,
@@ -28,6 +28,7 @@ def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path):
     # Загрузка эталонных MFCC
     logger.info(f"Загрузка эталонных MFCC из {reference_mfcc_path}")
     reference_mfcc = np.load(reference_mfcc_path)
+    reference_mfcc = np.expand_dims(reference_mfcc, axis=0)  # Добавляем размерность батча
 
     # Загрузка тестового аудиофайла
     logger.info(f"Загрузка тестового аудиофайла: {test_voice_path}")
@@ -53,13 +54,27 @@ def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path):
         logger.warning(f"Несоответствие размеров MFCC. Эталон: {reference_mfcc.shape[1]}, Тест: {test_mfccs.shape[1]}")
         return
 
-    # Применение модели для сравнения сегментов
+    # Итеративное предсказание по сегментам
     logger.info(f"Применение модели для {len(test_mfccs)} сегментов...")
-    scores = model.predict([np.tile(reference_mfcc, (len(test_mfccs), 1, 1)), test_mfccs])
+    scores = []
+
+    # Применяем предсказание блоками (батчами) для экономии памяти
+    for start in range(0, len(test_mfccs), batch_size):
+        end = min(start + batch_size, len(test_mfccs))
+        test_batch = test_mfccs[start:end]
+
+        # Повторяем эталонный MFCC для каждого сегмента в текущем батче
+        reference_batch = np.repeat(reference_mfcc, len(test_batch), axis=0)
+
+        # Выполняем предсказание для текущего батча
+        batch_scores = model.predict([reference_batch, test_batch], verbose=0)
+        scores.extend(batch_scores)
+
+        logger.info(f"Обработано сегментов: {end}/{len(test_mfccs)}")
 
     # Вывод результатов для каждого сегмента
     for i, score in enumerate(scores):
-        logger.info(f"Сегмент {i}: Уровень совпадения: {score:.4f}")
+        logger.info(f"Сегмент {i}: Уровень совпадения: {score[0]:.4f}")
 
 
 # Запуск демо-функции
