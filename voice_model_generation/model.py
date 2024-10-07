@@ -24,6 +24,7 @@ def create_base_network(input_shape):
 
 
 # Функция для вычисления косинусного расстояния
+# Функция для вычисления косинусного расстояния с явным указанием формы вывода
 def cosine_distance(vectors):
     """Возвращает косинусное расстояние между двумя векторами."""
     x, y = vectors
@@ -42,8 +43,8 @@ def create_siamese_network(input_shape):
     processed_a = base_network(input_a)
     processed_b = base_network(input_b)
 
-    # Заменяем на косинусное расстояние
-    distance = layers.Lambda(cosine_distance)([processed_a, processed_b])
+    # Использование косинусного расстояния с указанием формы выходного тензора
+    distance = layers.Lambda(cosine_distance, output_shape=(1,))([processed_a, processed_b])
 
     model = tf.keras.Model([input_a, input_b], distance)
     return model

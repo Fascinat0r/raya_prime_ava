@@ -19,23 +19,60 @@ OTHER_VOICES_PATH = os.path.join(BASE_DIR, "downloads", "other_references")
 NOISES_PATH = os.path.join(BASE_DIR, "downloads", "noises")
 
 
+def pad_or_trim(segment, target_length):
+    """
+    Обрезает или дополняет аудиосегмент до указанной длины.
+
+    Args:
+        segment (np.array): Аудиосегмент.
+        target_length (int): Целевая длина сегмента.
+
+    Returns:
+        np.array: Сегмент, обрезанный или дополненный до нужной длины.
+    """
+    if len(segment) > target_length:
+        return segment[:target_length]
+    elif len(segment) < target_length:
+        padding = np.zeros(target_length - len(segment))
+        return np.concatenate([segment, padding])
+    else:
+        return segment
+
+
 def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=16000):
-    """Формирует пары данных для обучения."""
+    """
+    Формирует пары данных для обучения.
+
+    Args:
+        raya_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
+        other_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
+        noise_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
+        segment_length (int): Длина каждого сегмента в секундах.
+        sr (int): Частота дискретизации.
+
+    Returns:
+        tuple: Набор парных данных для обучения (x1, x2) и их метки (y).
+    """
     logger.info("Подготовка данных...")
 
-    # Если файлы уже загружены как массивы, не загружаем повторно
-    raya_segments = extract_audio_segments_from_array(raya_files, sr, segment_length) if isinstance(raya_files[0],
-                                                                                                    np.ndarray) else extract_audio_segments(
-        raya_files, sr, segment_length)
-    other_segments = extract_audio_segments_from_array(other_files, sr, segment_length) if isinstance(other_files[0],
-                                                                                                      np.ndarray) else extract_audio_segments(
-        other_files, sr, segment_length)
-    noise_segments = extract_audio_segments_from_array(noise_files, sr, segment_length) if isinstance(noise_files[0],
-                                                                                                      np.ndarray) else extract_audio_segments(
-        noise_files, sr, segment_length)
+    # Извлечение загруженных аудиоданных из кортежей
+    raya_audio, _ = raya_files
+    other_audio, _ = other_files
+    noise_audio, _ = noise_files
+
+    # Извлечение сегментов из каждого типа данных
+    raya_segments = extract_audio_segments(raya_audio, sr, segment_length)
+    other_segments = extract_audio_segments(other_audio, sr, segment_length)
+    noise_segments = extract_audio_segments(noise_audio, sr, segment_length)
 
     # Нормализация количества сегментов
     raya_segments, other_segments, noise_segments = normalize_segments(raya_segments, other_segments, noise_segments)
+
+    # Обрезка или дополнение каждого сегмента до одинаковой длины
+    step = int(segment_length * sr)
+    raya_segments = [pad_or_trim(seg, step) for seg in raya_segments]
+    other_segments = [pad_or_trim(seg, step) for seg in other_segments]
+    noise_segments = [pad_or_trim(seg, step) for seg in noise_segments]
 
     x1, x2, y = [], [], []
 
@@ -57,42 +94,23 @@ def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=1600
         x2.append(seg_noise)
         y.append(0)
 
-    return np.array(x1), np.array(x2), np.array(y)
+    logger.info(f"Общее количество пар: {len(x1)}")
 
+    # Преобразование в numpy-массивы с одинаковой длиной
+    x1 = np.array(x1, dtype=np.float32)
+    x2 = np.array(x2, dtype=np.float32)
+    y = np.array(y, dtype=np.int32)
 
-def extract_audio_segments_from_array(audio_array_list, sr=16000, segment_length=2):
-    """
-    Разделяет уже загруженные аудиофайлы (массивы) на сегменты фиксированной длины.
-
-    Args:
-        audio_array_list (list): Список numpy массивов.
-        sr (int): Частота дискретизации.
-        segment_length (int): Длина сегмента в секундах.
-
-    Returns:
-        list: Список сегментов.
-    """
-    logger.info(
-        f"Извлечение аудиосегментов из {len(audio_array_list)} загруженных массивов с частотой {sr} и длиной сегмента {segment_length} сек.")
-    step = int(segment_length * sr)
-    segments = []
-
-    for audio in audio_array_list:
-        for start in range(0, len(audio) - step, step // 2):
-            segment = audio[start:start + step]
-            if len(segment) == step:
-                segments.append(segment)
-
-    return segments
+    return x1, x2, y
 
 
 def voice_model_generation():
     logger.info("Запуск основного процесса создания модели распознавания голоса...")
 
     # Загрузка данных
-    raya_files, _ = load_all_files(RAYA_VOICE_PATH)
-    other_files, _ = load_all_files(OTHER_VOICES_PATH)
-    noise_files, _ = load_all_files(NOISES_PATH)
+    raya_files = load_all_files(RAYA_VOICE_PATH)
+    other_files = load_all_files(OTHER_VOICES_PATH)
+    noise_files = load_all_files(NOISES_PATH)
 
     # Генерация данных
     x1, x2, y = prepare_data(raya_files, other_files, noise_files)
@@ -100,8 +118,14 @@ def voice_model_generation():
     # Преобразование в MFCC
     logger.info("Преобразование аудиосегментов в MFCC...")
     sr = 16000
-    x1_mfcc = [(librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T[:50] - np.mean(s)) / (np.std(s) + 1e-10) for s in x1]
-    x2_mfcc = [(librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T[:50] - np.mean(s)) / (np.std(s) + 1e-10) for s in x2]
+    x1_mfcc = [librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T for s in x1]
+    x2_mfcc = [librosa.feature.mfcc(y=s, sr=sr, n_mfcc=13).T for s in x2]
+
+    # Нормализация MFCC
+    x1_mfcc = [(mfcc - np.mean(mfcc, axis=0)) / (np.std(mfcc, axis=0) + 1e-10) for mfcc in x1_mfcc]
+    x2_mfcc = [(mfcc - np.mean(mfcc, axis=0)) / (np.std(mfcc, axis=0) + 1e-10) for mfcc in x2_mfcc]
+
+    # Преобразование в массивы numpy
     x1_mfcc = np.array(x1_mfcc)
     x2_mfcc = np.array(x2_mfcc)
 

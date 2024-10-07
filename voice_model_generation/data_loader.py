@@ -25,7 +25,7 @@ def load_all_files(directory, target_sr=16000):
         try:
             audio, sr = librosa.load(file, sr=None)  # Загружаем файл с его исходной частотой дискретизации
             if sr != target_sr:
-                logger.info(f"Преобразование частоты дискретизации {sr} -> {target_sr} для файла: {file}")
+                logger.debug(f"Преобразование частоты дискретизации {sr} -> {target_sr} для файла: {file}")
                 audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)  # Приведение частоты к target_sr
             loaded_files.append(audio)
             filenames.append(os.path.basename(file))

@@ -1,46 +1,33 @@
-import librosa
-import numpy as np
 from utils.data_utils import augment_audio
-
 from utils.my_logger import logger
 
 
 # Генерация фрагментов аудио с фильтрацией тишины и шумов
-def extract_audio_segments(file_list, sr=16000, segment_length=2, silence_threshold=20):
+def extract_audio_segments(audio_data_list, sr=16000, segment_length=2):
     """
-    Разделяет аудиофайлы на сегменты фиксированной длины и фильтрует участки с тишиной.
+    Разделяет аудиомассивы на сегменты фиксированной длины.
 
     Args:
-        file_list (list): Список аудиофайлов.
+        audio_data_list (list): Список загруженных аудиомассивов.
         sr (int): Частота дискретизации.
         segment_length (int): Длина каждого сегмента в секундах.
-        silence_threshold (int): Минимальный уровень громкости (в дБ), ниже которого сегмент считается тишиной.
 
     Returns:
         list: Список аудиосегментов.
     """
     logger.info(
-        f"Извлечение аудиосегментов из {len(file_list)} файлов с частотой дискретизации {sr} и длиной сегмента {segment_length} сек.")
+        f"Извлечение аудиосегментов из {len(audio_data_list)} загруженных массивов с частотой {sr} и длиной сегмента {segment_length} сек.")
     step = int(segment_length * sr)
     segments = []
 
-    for file in file_list:
-        logger.debug(f"Загрузка файла: {file}")
-        audio, _ = librosa.load(file, sr=sr)
-        audio_db = librosa.amplitude_to_db(np.abs(audio), ref=np.max)
-
-        # Удаление участков тишины
-        non_silent_intervals = librosa.effects.split(audio, top_db=silence_threshold)
-        filtered_audio = np.concatenate([audio[start:end] for start, end in non_silent_intervals])
-
-        # Разделение на сегменты с перекрытием на 50%
-        for start in range(0, len(filtered_audio) - step, step // 2):
-            segment = filtered_audio[start:start + step]
+    for audio in audio_data_list:
+        logger.debug(f"Обработка загруженного аудиофрагмента длиной {len(audio)}.")
+        for start in range(0, len(audio) - step, step // 2):  # Перекрытие на 50%
+            segment = audio[start:start + step]
             if len(segment) == step:
                 segments.append(segment)
 
-        logger.debug(f"Извлечено {len(segments)} сегментов из файла {file} после фильтрации тишины")
-
+    logger.info(f"Общее количество извлеченных сегментов: {len(segments)}")
     return segments
 
 
