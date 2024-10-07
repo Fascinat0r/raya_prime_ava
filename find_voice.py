@@ -22,7 +22,6 @@ def load_audio_file(file_path, target_sr=16000):
 def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, batch_size=32):
     # Загрузка модели
     logger.info(f"Загрузка модели: {model_path}")
-    # Используем custom_objects для регистрации функций
     model = tf.keras.models.load_model(model_path, custom_objects={'cosine_distance': cosine_distance,
                                                                    "contrastive_loss": contrastive_loss})
 
@@ -71,8 +70,8 @@ def demo_voice_recognition(model_path, reference_mfcc_path, test_voice_path, bat
         logger.info(f"Размерность reference_batch: {reference_batch.shape}, Размерность test_batch: {test_batch.shape}")
 
         try:
-            # Использование кортежа (reference_batch, test_batch)
-            batch_scores = model.predict([reference_batch, test_batch], verbose=0)
+            # Используем передачу в виде отдельных параметров (не список, а кортеж)
+            batch_scores = model.predict([reference_batch, test_batch], verbose=0)  # Исправлено с []
             scores.extend(batch_scores)
         except ValueError as e:
             logger.error(f"Ошибка при предсказании: {e}")
