@@ -1,32 +1,46 @@
 import logging
 import os
 
-from neural_search import find_segments_with_neural_search
+from feature_matching import extract_voice_features, match_segments
+from preprocessing import load_audio, extract_mfcc
+from utils import get_all_audio_files, timecode_format
 
-from config import REFERENCE_VOICE_PATH, AUDIO_FOLDER_PATH, MFCC_SAVE_PATH, OUTPUT_FILE, THRESHOLD
-from feature_extraction import extract_mfcc, save_mfcc, load_mfcc
-from matching import find_matching_segments
-from preprocessing import preprocess_audio
+# Пути
+BASE_DIR = os.path.dirname(__file__)
+REFERENCE_VOICE_PATH = os.path.join(BASE_DIR, "downloads", "raya_reference.wav")
+AUDIO_FOLDER_PATH = os.path.join(BASE_DIR, "E:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт")
+OUTPUT_FILE = os.path.join(BASE_DIR, "matching_segments.txt")
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
-def main():
-    # 1. Проверка и подготовка эталонных данных
-    if not os.path.exists(MFCC_SAVE_PATH):
-        logging.info("Извлечение и сохранение эталонного MFCC...")
-        reference_audio = preprocess_audio(REFERENCE_VOICE_PATH)
-        reference_mfcc = extract_mfcc(reference_audio)
-        save_mfcc(reference_mfcc, MFCC_SAVE_PATH)
-    else:
-        logging.info("Загрузка ранее сохраненных эталонных данных...")
-        reference_mfcc = load_mfcc(MFCC_SAVE_PATH)
-
-    # 2. Поиск совпадений по аудиофайлам в папке
-    find_matching_segments(reference_mfcc, AUDIO_FOLDER_PATH, OUTPUT_FILE, threshold=THRESHOLD)
-    find_segments_with_neural_search(REFERENCE_VOICE_PATH, AUDIO_FOLDER_PATH, OUTPUT_FILE)
+# Логирование
+logging.basicConfig(filename="search_log.log", level=logging.INFO)
 
 
-if __name__ == '__main__':
-    main()
+def process_reference(reference_voice_path):
+    """Обрабатывает эталонное аудио и возвращает его голосовые признаки."""
+    audio, sr = load_audio(reference_voice_path)
+    mfcc = extract_mfcc(audio, sr)
+    reference_features = extract_voice_features(mfcc)
+    return reference_features
+
+
+def process_audio_files(audio_folder_path, reference_features, output_file):
+    """Обрабатывает все аудиофайлы в папке и сохраняет совпадения."""
+    audio_files = get_all_audio_files(audio_folder_path)
+    with open(output_file, "w") as out_file:
+        for audio_file in audio_files:
+            logging.info(f"Processing file: {audio_file}")
+            matches = match_segments(reference_features, audio_file)
+            for start, end, similarity in matches:
+                line = f"File: {audio_file}, Start: {timecode_format(start)}, End: {timecode_format(end)}, Similarity: {similarity:.2f}\n"
+                out_file.write(line)
+                logging.info(line)
+            logging.info(f"Completed processing: {audio_file}")
+
+
+if __name__ == "__main__":
+    # Обработка эталонного голоса
+    reference_features = process_reference(REFERENCE_VOICE_PATH)
+
+    # Обработка всех аудиофайлов и сохранение совпадений
+    process_audio_files(AUDIO_FOLDER_PATH, reference_features, OUTPUT_FILE)
+    print(f"Все совпадения сохранены в {OUTPUT_FILE}")
