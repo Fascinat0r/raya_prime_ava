@@ -10,7 +10,7 @@ from utils.my_logger import logger
 from voice_model_generation.data_loader import load_all_files
 from voice_model_generation.model import create_siamese_network
 from voice_model_generation.preprocessing import extract_audio_segments, normalize_segments
-from voice_model_generation.train_test import contrastive_loss, plot_confusion_matrix, get_early_stopping_callback
+from voice_model_generation.train_test import plot_confusion_matrix, get_early_stopping_callback
 
 # Пути к данным
 BASE_DIR = os.path.dirname(__file__)
@@ -42,16 +42,6 @@ def pad_or_trim(segment, target_length):
 def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=16000):
     """
     Формирует пары данных для обучения.
-
-    Args:
-        raya_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
-        other_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
-        noise_files (tuple): Кортеж с загруженными данными и именами файлов (данные, имена).
-        segment_length (int): Длина каждого сегмента в секундах.
-        sr (int): Частота дискретизации.
-
-    Returns:
-        tuple: Набор парных данных для обучения (x1, x2) и их метки (y).
     """
     logger.info("Подготовка данных...")
 
@@ -63,16 +53,15 @@ def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=1600
     # Извлечение сегментов из каждого типа данных
     raya_segments = extract_audio_segments(raya_audio, sr, segment_length)
     other_segments = extract_audio_segments(other_audio, sr, segment_length)
-    noise_segments = extract_audio_segments(noise_audio, sr, segment_length)
+    other_segments += extract_audio_segments(noise_audio, sr, segment_length)
 
     # Нормализация количества сегментов
-    raya_segments, other_segments, noise_segments = normalize_segments(raya_segments, other_segments, noise_segments)
+    raya_segments, other_segments = normalize_segments(raya_segments, other_segments)
 
     # Обрезка или дополнение каждого сегмента до одинаковой длины
     step = int(segment_length * sr)
     raya_segments = [pad_or_trim(seg, step) for seg in raya_segments]
     other_segments = [pad_or_trim(seg, step) for seg in other_segments]
-    noise_segments = [pad_or_trim(seg, step) for seg in noise_segments]
 
     x1, x2, y = [], [], []
 
@@ -88,12 +77,7 @@ def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=1600
         x2.append(seg_other)
         y.append(0)
 
-    # Шумовые пары (голос Райи — шум)
-    for seg_raya, seg_noise in zip(raya_segments, noise_segments):
-        x1.append(seg_raya)
-        x2.append(seg_noise)
-        y.append(0)
-
+    logger.info(f"Положительных пар: {y.count(1)}, Отрицательных пар: {y.count(0)}")
     logger.info(f"Общее количество пар: {len(x1)}")
 
     # Преобразование в numpy-массивы с одинаковой длиной
@@ -141,7 +125,7 @@ def voice_model_generation():
 
     # Компиляция модели
     optimizer = Adam(learning_rate=0.0001)
-    model.compile(optimizer=optimizer, loss=contrastive_loss)
+    model.compile(optimizer=optimizer, loss="binary_crossentropy")
 
     # Обучение модели с EarlyStopping
     logger.info("Начало обучения модели...")
@@ -159,8 +143,8 @@ def voice_model_generation():
 
     # Сохранение модели
     logger.info("Сохранение модели...")
-    model.save('models/voice_recognition_model_v1.keras')
-    logger.info("Модель успешно сохранена как voice_recognition_model_v1.keras")
+    model.save('models/voice_recognition_model_v2.keras')
+    logger.info("Модель успешно сохранена как voice_recognition_model_v2.keras")
 
 
 if __name__ == "__main__":

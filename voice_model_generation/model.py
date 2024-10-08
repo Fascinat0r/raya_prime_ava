@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensorflow.keras import layers, Model
 
 
 # Создание архитектуры базовой сети
@@ -23,16 +23,7 @@ def create_base_network(input_shape):
     return model
 
 
-# Функция для вычисления косинусного расстояния
-@tf.keras.utils.register_keras_serializable
-def cosine_distance(vectors):
-    """Возвращает косинусное расстояние между двумя векторами."""
-    x, y = vectors
-    x = tf.nn.l2_normalize(x, axis=-1)
-    y = tf.nn.l2_normalize(y, axis=-1)
-    return 1 - tf.reduce_sum(x * y, axis=-1)
-
-
+# Создание сиамской сети без кастомных функций
 def create_siamese_network(input_shape):
     """Создает и возвращает модель сиамской сети с косинусным расстоянием."""
     base_network = create_base_network(input_shape)
@@ -43,8 +34,8 @@ def create_siamese_network(input_shape):
     processed_a = base_network(input_a)
     processed_b = base_network(input_b)
 
-    # Использование косинусного расстояния с указанием формы выходного тензора
-    distance = layers.Lambda(cosine_distance, output_shape=(1,))([processed_a, processed_b])
+    # Используем встроенный слой Dot с параметром normalize=True для косинусного расстояния
+    distance = layers.Dot(axes=1, normalize=True)([processed_a, processed_b])
 
-    model = tf.keras.Model([input_a, input_b], distance)
+    model = Model([input_a, input_b], distance)
     return model

@@ -2,12 +2,16 @@ import random
 
 import librosa
 import numpy as np
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, Memory
 
 from utils.my_logger import logger
 
 # Параметры для параллельной обработки
 NUM_CORES = -1  # Использование всех доступных ядер
+
+# Создание директории для хранения кеша
+CACHE_DIR = "cache"
+memory = Memory(CACHE_DIR, verbose=0)
 
 
 def augment_audio(segments, target_length):
@@ -26,7 +30,7 @@ def augment_audio(segments, target_length):
         remaining = target_length - len(augmented_segments)
         logger.info(f"Параллельное выполнение аугментации для {remaining} сегментов.")
 
-        # Параллельное выполнение аугментаций
+        # Параллельное выполнение аугментаций с кешированием
         new_segments = Parallel(n_jobs=NUM_CORES)(
             delayed(random_augmentation)(segment) for segment in random.choices(segments, k=remaining)
         )
@@ -38,7 +42,17 @@ def augment_audio(segments, target_length):
     return augmented_segments[:target_length]
 
 
+@memory.cache
 def random_augmentation(segment):
+    """
+    Применение случайной аугментации к аудиосегменту с кешированием.
+    :param segment: Входной аудиосегмент в виде массива numpy
+    :return: Модифицированный сегмент
+    """
+    return _random_augmentation(segment)
+
+
+def _random_augmentation(segment):
     """
     Применение случайной аугментации к аудиосегменту.
     :param segment: Входной аудиосегмент в виде массива numpy
@@ -85,3 +99,10 @@ def add_noise(data, noise_factor=0.005):
     logger.debug(f"Добавление шума с коэффициентом {noise_factor}.")
     noise = np.random.randn(len(data))
     return data + noise_factor * noise
+
+
+# Очистка кеша (если требуется вручную сбросить кеш)
+def clear_cache():
+    """Очистка кеша для обновления данных."""
+    memory.clear()
+    logger.info("Кеш успешно очищен.")

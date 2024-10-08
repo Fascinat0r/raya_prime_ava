@@ -41,10 +41,12 @@ def split_audio_into_segments(audio, sr, segment_length=2, step=None):
 
 
 # Извлечение MFCC для каждого сегмента
-def extract_mfcc_features(segments, sr, n_mfcc=13):
-    """Извлекает MFCC для каждого сегмента."""
-    mfcc_features = [librosa.feature.mfcc(y=seg, sr=sr, n_mfcc=n_mfcc).T for seg in segments]
-    return [mfcc - np.mean(mfcc, axis=0) / (np.std(mfcc, axis=0) + 1e-10) for mfcc in mfcc_features]
+def extract_mfcc_features(segment, sr, n_mfcc=13):
+    """Извлекает MFCC для одного сегмента."""
+    if not isinstance(segment, np.ndarray):
+        segment = np.array(segment)
+    mfcc = librosa.feature.mfcc(y=segment, sr=sr, n_mfcc=n_mfcc).T
+    return (mfcc - np.mean(mfcc, axis=0)) / (np.std(mfcc, axis=0) + 1e-10)
 
 
 # Сравнение сегментов
@@ -62,8 +64,9 @@ def compare_segments_with_target(siam_model, target_mfcc, test_mfcc, threshold=0
 def parallel_segment_comparison(siam_model, target_mfcc, test_segments, sr, n_mfcc, num_workers=4):
     """Параллельно извлекает MFCC и сравнивает сегменты."""
     with multiprocessing.Pool(num_workers) as pool:
+        # Изменяем на передачу сегментов по одному
         test_mfcc = pool.starmap(extract_mfcc_features, [(seg, sr, n_mfcc) for seg in test_segments])
-        results = pool.starmap(compare_segments_with_target, [(siam_model, target_mfcc, test_mfcc)])
+        results = pool.apply(compare_segments_with_target, args=(siam_model, target_mfcc, test_mfcc))
     return results
 
 
@@ -77,9 +80,9 @@ def predict_and_visualize(siam_model, target_filepath, test_filepath, segment_le
     if len(target_segments) < n_segments:
         raise ValueError(f"Недостаточно сегментов в целевом аудио. Доступно: {len(target_segments)}")
 
-    # Заменяем строку выбора первых n сегментов:
+    # Случайный выбор n сегментов
     target_segments = random.sample(target_segments, n_segments)
-    target_mfcc = extract_mfcc_features(target_segments, sr)
+    target_mfcc = [extract_mfcc_features(seg, sr) for seg in target_segments]
 
     # Загрузка тестируемого аудио
     test_audio, _ = load_and_preprocess_audio(test_filepath, sr)

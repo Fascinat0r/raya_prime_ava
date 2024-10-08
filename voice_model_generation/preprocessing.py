@@ -32,27 +32,25 @@ def extract_audio_segments(audio_data_list, sr=16000, segment_length=2):
 
 
 # Нормализация количества сегментов с использованием аугментации
-def normalize_segments(raya_segments, other_segments, noise_segments):
+def normalize_segments(raya_segments, other_segments):
     """
     Нормализует количество сегментов с помощью аугментации данных.
 
     Args:
         raya_segments (list): Сегменты для голоса Райи.
         other_segments (list): Сегменты для других голосов.
-        noise_segments (list): Сегменты для шумов.
 
     Returns:
         tuple: Нормализованные списки сегментов.
     """
     logger.info("Нормализация количества сегментов...")
-    max_len = max(len(raya_segments), len(other_segments), len(noise_segments))
+    max_len = max(len(raya_segments), len(other_segments))
     logger.info(f"Максимальное количество сегментов: {max_len}")
 
     # Аугментация данных вместо дублирования
     raya_segments = augment_audio(raya_segments, target_length=max_len)
     other_segments = augment_audio(other_segments, target_length=max_len)
-    noise_segments = augment_audio(noise_segments, target_length=max_len)
 
     logger.info(
-        f"После нормализации: Голос Райи: {len(raya_segments)}, Другие голоса: {len(other_segments)}, Шумы: {len(noise_segments)}")
-    return raya_segments, other_segments, noise_segments
+        f"После нормализации: Голос Райи: {len(raya_segments)}, Другие голоса: {len(other_segments)}")
+    return raya_segments, other_segments
