@@ -1,7 +1,6 @@
 import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
 import logging
 import multiprocessing
 import random
@@ -9,9 +8,6 @@ import random
 import librosa
 import numpy as np
 from tensorflow.keras.models import load_model
-
-from voice_model_generation.model import cosine_distance
-from voice_model_generation.train_test import contrastive_loss
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -53,10 +49,17 @@ def extract_mfcc_features(segment, sr, n_mfcc=13):
 def compare_segments_with_target(siam_model, target_mfcc, test_mfcc, threshold=0.5):
     """Сравнивает каждый сегмент теста с целевыми сегментами."""
     results = []
+    # Прогоняем каждый тестовый сегмент по каждому целевому
     for test in test_mfcc:
-        distances = siam_model.predict([np.expand_dims(target, axis=0) for target in target_mfcc],
-                                       np.expand_dims(test, axis=0))
-        results.append(np.mean(distances < threshold))
+        distances = []
+        for target in target_mfcc:
+            target_input = np.expand_dims(target, axis=0)
+            test_input = np.expand_dims(test, axis=0)
+            # Получаем расстояние между одним целевым и тестовым сегментом
+            distance = siam_model.predict([target_input, test_input])
+            distances.append(distance)
+        # Среднее расстояние между тестовым сегментом и всеми целевыми сегментами
+        results.append(np.mean(distances))
     return results
 
 
@@ -64,9 +67,10 @@ def compare_segments_with_target(siam_model, target_mfcc, test_mfcc, threshold=0
 def parallel_segment_comparison(siam_model, target_mfcc, test_segments, sr, n_mfcc, num_workers=4):
     """Параллельно извлекает MFCC и сравнивает сегменты."""
     with multiprocessing.Pool(num_workers) as pool:
-        # Изменяем на передачу сегментов по одному
+        # Извлечение MFCC для всех тестовых сегментов в параллельном режиме
         test_mfcc = pool.starmap(extract_mfcc_features, [(seg, sr, n_mfcc) for seg in test_segments])
-        results = pool.apply(compare_segments_with_target, args=(siam_model, target_mfcc, test_mfcc))
+    # Сравниваем сегменты с помощью сиамской сети
+    results = compare_segments_with_target(siam_model, target_mfcc, test_mfcc)
     return results
 
 
@@ -97,9 +101,8 @@ def predict_and_visualize(siam_model, target_filepath, test_filepath, segment_le
 # Запуск демонстрации
 if __name__ == "__main__":
     # Импорт модели сиамской сети
-    model_path = 'models/voice_recognition_model_v1.keras'
-    model = load_model(model_path, custom_objects={'cosine_distance': cosine_distance,
-                                                   "contrastive_loss": contrastive_loss})
+    model_path = 'models/voice_recognition_model_v3.keras'
+    model = load_model(model_path)
 
     path_to_target = "downloads/raya_references/Lp. Идеальный МИР #30 НОВЫЙ ПЕРСОНАЖ • Майнкрафт.wav"
     path_to_test = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #10 ЖИВОЙ РОБОТ • Майнкрафт.wav"

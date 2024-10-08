@@ -1,6 +1,5 @@
 import os
 
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import librosa
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -20,16 +19,7 @@ NOISES_PATH = os.path.join(BASE_DIR, "downloads", "noises")
 
 
 def pad_or_trim(segment, target_length):
-    """
-    Обрезает или дополняет аудиосегмент до указанной длины.
-
-    Args:
-        segment (np.array): Аудиосегмент.
-        target_length (int): Целевая длина сегмента.
-
-    Returns:
-        np.array: Сегмент, обрезанный или дополненный до нужной длины.
-    """
+    """Обрезает или дополняет аудиосегмент до указанной длины."""
     if len(segment) > target_length:
         return segment[:target_length]
     elif len(segment) < target_length:
@@ -40,9 +30,7 @@ def pad_or_trim(segment, target_length):
 
 
 def prepare_data(raya_files, other_files, noise_files, segment_length=2, sr=16000):
-    """
-    Формирует пары данных для обучения.
-    """
+    """Формирует пары данных для обучения."""
     logger.info("Подготовка данных...")
 
     # Извлечение загруженных аудиоданных из кортежей
@@ -118,7 +106,7 @@ def voice_model_generation():
     # Разделение данных на обучающую и тестовую выборку
     x1_train, x1_test, x2_train, x2_test, y_train, y_test = train_test_split(x1_mfcc, x2_mfcc, y, test_size=0.2,
                                                                              random_state=42)
-    np.save("models/reference_mfcc.npy", x1_train)
+
     # Создание архитектуры сиамской сети
     input_shape = x1_train.shape[1:]
     model = create_siamese_network(input_shape)
@@ -135,16 +123,29 @@ def voice_model_generation():
     # Тестирование модели
     logger.info("Проверка модели...")
     y_pred = model.predict([x1_test, x2_test])
-    y_pred_labels = (y_pred < 0.5).astype(int)
+
+    # Логируем результаты предсказаний
+    logger.info(f"Пример предсказаний: {y_pred[:10]}")
+    logger.info(f"Пример истинных меток: {y_test[:10]}")
+
+    # Построение матрицы ошибок
+    logger.info(f"Среднее значение предсказаний: {np.mean(y_pred)}")
+    logger.info(f"Минимальное значение предсказаний: {np.min(y_pred)}, Максимальное значение: {np.max(y_pred)}")
+
+    # Установим порог 0.5, если используем бинарную классификацию
+    y_pred_labels = (y_pred > 0.5).astype(int)
 
     # Построение матрицы ошибок
     logger.info("Построение матрицы ошибок...")
+    logger.info(f"Истинные метки: {np.unique(y_test, return_counts=True)}")
+    logger.info(f"Предсказанные метки: {np.unique(y_pred_labels, return_counts=True)}")
+
     plot_confusion_matrix(y_test, y_pred_labels)
 
     # Сохранение модели
     logger.info("Сохранение модели...")
-    model.save('models/voice_recognition_model_v2.keras')
-    logger.info("Модель успешно сохранена как voice_recognition_model_v2.keras")
+    model.save('models/voice_recognition_model_v3.keras')
+    logger.info("Модель успешно сохранена как voice_recognition_model_v3.keras")
 
 
 if __name__ == "__main__":

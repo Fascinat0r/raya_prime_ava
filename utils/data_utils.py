@@ -106,3 +106,7 @@ def clear_cache():
     """Очистка кеша для обновления данных."""
     memory.clear()
     logger.info("Кеш успешно очищен.")
+
+
+if __name__ == "__main__":
+    clear_cache()
