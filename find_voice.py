@@ -1,12 +1,14 @@
 import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import logging
 import multiprocessing
 import random
-
+import matplotlib.pyplot as plt
 import librosa
 import numpy as np
+from datetime import timedelta
 from tensorflow.keras.models import load_model
 
 # Настройка логирования
@@ -46,7 +48,7 @@ def extract_mfcc_features(segment, sr, n_mfcc=13):
 
 
 # Сравнение сегментов
-def compare_segments_with_target(siam_model, target_mfcc, test_mfcc, threshold=0.5):
+def compare_segments_with_target(siam_model, target_mfcc, test_mfcc):
     """Сравнивает каждый сегмент теста с целевыми сегментами."""
     results = []
     # Прогоняем каждый тестовый сегмент по каждому целевому
@@ -58,8 +60,8 @@ def compare_segments_with_target(siam_model, target_mfcc, test_mfcc, threshold=0
             # Получаем расстояние между одним целевым и тестовым сегментом
             distance = siam_model.predict([target_input, test_input])
             distances.append(distance)
-        # Среднее расстояние между тестовым сегментом и всеми целевыми сегментами
-        results.append(np.mean(distances))
+        # Добавление значения среднего расстояния для каждого сегмента
+        results.append(np.mean(distances) * 100)  # Преобразование в проценты
     return results
 
 
@@ -72,6 +74,42 @@ def parallel_segment_comparison(siam_model, target_mfcc, test_segments, sr, n_mf
     # Сравниваем сегменты с помощью сиамской сети
     results = compare_segments_with_target(siam_model, target_mfcc, test_mfcc)
     return results
+
+
+# Построение графика сходства с временной шкалой
+
+import csv
+from scipy.signal import savgol_filter
+
+
+def plot_and_save_similarity_graph(results, segment_length, sr, title="Voice Similarity Over Time",
+                                   output_file="similarity_results.csv"):
+    """Строит график, где ось X — время (часы:минуты:секунды), ось Y — процент сходства и сохраняет результаты в CSV."""
+    # Аппроксимация сигнала с использованием фильтра Савицкого-Голея
+    smoothed_results = savgol_filter(results, window_length=11, polyorder=2)
+
+    # Создание списка временных меток в секундах
+    time_seconds = [i * segment_length for i in range(len(smoothed_results))]
+
+    # Сохранение в CSV-файл
+    with open(output_file, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Time (seconds)", "Similarity Percentage"])
+        writer.writerows(zip(time_seconds, smoothed_results))
+
+    # Построение графика
+    time_labels = [str(timedelta(seconds=sec)) for sec in time_seconds]
+    plt.figure(figsize=(15, 5))
+    plt.plot(time_labels, smoothed_results, marker='o', linestyle='-', color='b', label='Smoothed Similarity')
+    plt.xticks(rotation=45)
+    plt.xlabel("Time (hh:mm:ss)")
+    plt.ylabel("Similarity Percentage")
+    plt.title(title)
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
+    logger.info(f"Результаты успешно сохранены в файл {output_file}")
 
 
 # Демонстрационная функция предсказания и визуализации
@@ -97,6 +135,9 @@ def predict_and_visualize(siam_model, target_filepath, test_filepath, segment_le
 
     logger.info(f"Результаты сравнения: {results}")
 
+    # Визуализация результатов
+    plot_and_save_similarity_graph(results, segment_length, sr, title="Voice Similarity Over Time")
+
 
 # Запуск демонстрации
 if __name__ == "__main__":
@@ -104,6 +145,6 @@ if __name__ == "__main__":
     model_path = 'models/voice_recognition_model_v3.keras'
     model = load_model(model_path)
 
-    path_to_target = "downloads/raya_references/Lp. Идеальный МИР #30 НОВЫЙ ПЕРСОНАЖ • Майнкрафт.wav"
+    path_to_target = "downloads/raya_references/Lp. Идеальный МИР #10 ЖИВОЙ РОБОТ • Майнкрафт.wav"
     path_to_test = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #10 ЖИВОЙ РОБОТ • Майнкрафт.wav"
     predict_and_visualize(model, path_to_target, path_to_test)
