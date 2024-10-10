@@ -45,12 +45,32 @@ def load_mfcc_files(mfcc_folder):
     return mfcc_files
 
 
-def create_pairs(mfcc_files, num_pairs=10000):
+def load_and_pad_mfcc(file_path, target_shape=None):
+    """
+    Загружает MFCC файл и дополняет его до заданной формы.
+
+    :param file_path: Путь к .npy файлу с MFCC.
+    :param target_shape: Целевая форма (если None, используется форма первого файла).
+    :return: Выровненный массив MFCC.
+    """
+    mfcc = np.load(file_path)
+    if target_shape is not None:
+        # Дополнение или обрезка до целевой формы
+        padded_mfcc = np.zeros(target_shape)
+        min_shape = min(mfcc.shape[1], target_shape[1])
+        padded_mfcc[:, :min_shape] = mfcc[:, :min_shape]
+        return padded_mfcc
+    else:
+        return mfcc
+
+
+def create_pairs(mfcc_files, num_pairs=10000, target_shape=None):
     """
     Создает положительные и отрицательные пары из MFCC файлов.
 
     :param mfcc_files: Словарь с MFCC файлами, организованными по классам и типам.
     :param num_pairs: Количество пар, которое необходимо создать.
+    :param target_shape: Целевая форма для выравнивания всех файлов.
     :return: Два массива (X1, X2) и массив меток y.
     """
     logger.info(f"Создание {num_pairs} пар (положительных и отрицательных)...")
@@ -62,18 +82,18 @@ def create_pairs(mfcc_files, num_pairs=10000):
 
     # Создание положительных пар
     for _ in range(num_pairs // 2):
-        x1 = random.choice(target_files)
-        x2 = random.choice(target_files)
-        X1.append(np.load(x1))
-        X2.append(np.load(x2))
+        x1_path = random.choice(target_files)
+        x2_path = random.choice(target_files)
+        X1.append(load_and_pad_mfcc(x1_path, target_shape))
+        X2.append(load_and_pad_mfcc(x2_path, target_shape))
         y.append(1)
 
     # Создание отрицательных пар
     for _ in range(num_pairs // 2):
-        x1 = random.choice(target_files)
-        x2 = random.choice(non_target_files)
-        X1.append(np.load(x1))
-        X2.append(np.load(x2))
+        x1_path = random.choice(target_files)
+        x2_path = random.choice(non_target_files)
+        X1.append(load_and_pad_mfcc(x1_path, target_shape))
+        X2.append(load_and_pad_mfcc(x2_path, target_shape))
         y.append(0)
 
     logger.info(f"Пары успешно созданы: {len(X1)} пар.")
@@ -121,6 +141,11 @@ if __name__ == "__main__":
     logger.info("Запуск подготовки данных...")
 
     mfcc_files = load_mfcc_files(MFCC_FOLDER)
-    X1, X2, y = create_pairs(mfcc_files, num_pairs=10000)
+
+    # Используем форму первого файла для выравнивания
+    first_file = list(mfcc_files.values())[0][0]
+    target_shape = np.load(first_file).shape
+
+    X1, X2, y = create_pairs(mfcc_files, num_pairs=10000, target_shape=target_shape)
     split_and_save_data(X1, X2, y)
     logger.info("Подготовка данных завершена.")

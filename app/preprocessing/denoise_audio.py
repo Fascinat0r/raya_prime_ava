@@ -2,6 +2,10 @@ import noisereduce as nr
 import numpy as np
 import soundfile as sf
 
+from app.utils.logger import get_logger
+
+logger = get_logger("denoise_audio")
+
 
 def denoise_wav(input_file: str, output_file: str, chunk_size: int = 50000, prop_decrease: float = 0.8,
                 stationary: bool = False, n_std_thresh_stationary: float = 1.0):
@@ -16,24 +20,24 @@ def denoise_wav(input_file: str, output_file: str, chunk_size: int = 50000, prop
     stationary (bool): Использовать ли стационарный шумоподавитель (False для спектрального подавления).
     n_std_thresh_stationary (float): Порог стандартного отклонения для определения шума.
     """
-    print(f"Удаление шума из файла: {input_file}")
+    logger.info(f"Удаление шума из файла: {input_file}")
 
     # Загрузка аудиофайла
     data, sample_rate = sf.read(input_file)
 
     # Проверка количества каналов и преобразование в моно
     if len(data.shape) > 1:
-        print("Аудиофайл многоканальный, преобразование в моно.")
+        logger.info("Аудиофайл многоканальный, преобразование в моно.")
         data = convert_to_mono(data)
 
     # Применение шумоподавления сегментами
-    print("Обработка аудио и удаление шума...")
+    logger.info("Обработка аудио и удаление шума...")
     reduced_noise = reduce_noise_segmented(data, sample_rate, chunk_size, prop_decrease, stationary,
                                            n_std_thresh_stationary)
 
     # Сохранение очищенного аудио
     sf.write(output_file, reduced_noise, sample_rate)
-    print(f"Шум удален, файл сохранен в {output_file}")
+    logger.info(f"Шум удален, файл сохранен в {output_file}")
 
 
 def convert_to_mono(audio_data):

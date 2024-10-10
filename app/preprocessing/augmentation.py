@@ -5,6 +5,10 @@ import librosa
 import numpy as np
 import soundfile as sf
 
+from app.utils.logger import get_logger
+
+logger = get_logger("augmentation")
+
 
 def pitch_shift(audio_data, sample_rate, n_steps_range=(-3, 3)):
     """
@@ -43,7 +47,7 @@ def generate_pink_noise(length: int):
 
 
 def add_noise(audio_data, sample_rate, noise_type='white', noise_factor_range=(0.002, 0.01),
-              noise_files_folder="data/noises"):
+              noise_files_folder="../data/noises"):
     """
     Добавление различных видов шума.
     :param audio_data: Аудиоданные в виде массива numpy.
@@ -114,7 +118,7 @@ def augment_file(input_file, output_file, augmentation_probs=None):
     if augmentation_probs is None:
         augmentation_probs = [0.15, 0.1, 0.2, 0.15, 0.1, 0.2, 0.1]
 
-    print(f"Обработка файла: {input_file}")
+    logger.info(f"Обработка файла: {input_file}")
 
     # Загрузка аудиофайла
     audio_data, sample_rate = librosa.load(input_file, sr=None)
@@ -149,14 +153,14 @@ def augment_file(input_file, output_file, augmentation_probs=None):
     )[0]
     selected_augmentation = augmentation_methods[selected_augmentation_idx]
 
-    print(f"Выбрана аугментация: {augmentation_methods_names[selected_augmentation_idx]}")
+    logger.info(f"Выбрана аугментация: {augmentation_methods_names[selected_augmentation_idx]}")
 
     # Применение выбранной аугментации
     augmented_data = selected_augmentation(audio_data)
 
     # Сохранение результата
     sf.write(output_file, augmented_data, sample_rate)
-    print(f"Аугментированный файл сохранен: {output_file}")
+    logger.info(f"Аугментированный файл сохранен: {output_file}")
 
 
 if __name__ == "__main__":

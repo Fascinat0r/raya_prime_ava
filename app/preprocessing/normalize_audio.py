@@ -1,5 +1,9 @@
 from pydub import AudioSegment
 
+from app.utils.logger import get_logger
+
+logger = get_logger("normalize_audio")
+
 
 def normalize_audio(input_file: str, output_file: str, target_dBFS: float = -20.0):
     """
@@ -10,7 +14,7 @@ def normalize_audio(input_file: str, output_file: str, target_dBFS: float = -20.
     output_file (str): Путь для сохранения нормализованного аудиофайла.
     target_dBFS (float): Целевой уровень громкости в децибелах (по умолчанию -20 dBFS).
     """
-    print(f"Нормализация файла: {input_file}")
+    logger.info(f"Нормализация файла: {input_file}")
 
     # Загружаем аудиофайл
     audio = AudioSegment.from_file(input_file)
@@ -23,7 +27,7 @@ def normalize_audio(input_file: str, output_file: str, target_dBFS: float = -20.
 
     # Сохраняем нормализованный файл
     normalized_audio.export(output_file, format="wav")
-    print(f"Файл {input_file} сохранен как {output_file} с нормализованной громкостью.")
+    logger.info(f"Файл {input_file} сохранен как {output_file} с нормализованной громкостью.")
 
 
 # Пример использования:

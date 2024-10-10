@@ -3,12 +3,15 @@ import random
 
 import pandas as pd
 
+from app.utils.logger import get_logger
 from augmentation import augment_file
 
 # Пути к файлам и папкам
 METADATA_FILE = "../data/metadata.csv"
 SEGMENTS_FOLDER = "data/segments"
 AUGMENTED_FOLDER = "data/augmented"
+
+logger = get_logger("balance_categories")
 
 
 def get_next_segment_number(metadata, prefix):
@@ -40,8 +43,8 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
     target_segments = metadata[metadata['original_filename'].str.startswith("1")]
     other_segments = metadata[metadata['original_filename'].str.startswith("0")]
 
-    print(f"Сегментов целевого голоса: {len(target_segments)}")
-    print(f"Сегментов других голосов: {len(other_segments)}")
+    logger.info(f"Сегментов целевого голоса: {len(target_segments)}")
+    logger.info(f"Сегментов других голосов: {len(other_segments)}")
 
     # Определение недостающей категории
     if len(target_segments) > len(other_segments):
@@ -55,7 +58,7 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
 
     # Количество недостающих сегментов для балансировки
     num_to_augment = abs(len(target_segments) - len(other_segments))
-    print(f"Количество недостающих сегментов для балансировки: {num_to_augment}")
+    logger.info(f"Количество недостающих сегментов для балансировки: {num_to_augment}")
 
     # Убедиться, что папка для аугментации существует
     if not os.path.exists(augmented_folder):
@@ -97,7 +100,7 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
 
     # Сохранение обновленных метаданных
     metadata.to_csv(metadata_file, index=False)
-    print(f"Обновленные метаданные сохранены в {metadata_file}. Добавлено {num_to_augment} новых сегментов.")
+    logger.info(f"Обновленные метаданные сохранены в {metadata_file}. Добавлено {num_to_augment} новых сегментов.")
 
 
 # Пример использования:

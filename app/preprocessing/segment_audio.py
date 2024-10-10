@@ -2,6 +2,10 @@ import os
 
 import soundfile as sf
 
+from app.utils.logger import get_logger
+
+logger = get_logger("segment_audio")
+
 
 def segment_audio(input_file: str, output_folder: str, segment_length: float = 5.0, overlap: float = 0.5):
     """
@@ -27,7 +31,7 @@ def segment_audio(input_file: str, output_folder: str, segment_length: float = 5
     # Количество сегментов, которые можно получить
     total_segments = (len(data) - segment_samples) // step_size + 1
 
-    print(
+    logger.info(
         f"Разделение файла на {total_segments} сегментов, длина: {segment_length} секунд, перекрытие: {overlap * 100:.0f}%")
 
     # Перебираем и создаем сегменты
@@ -44,7 +48,7 @@ def segment_audio(input_file: str, output_folder: str, segment_length: float = 5
 
         # Сохранение сегмента
         sf.write(output_path, segment, sample_rate)
-        print(f"Сегмент {i + 1} сохранен: {output_path}")
+        logger.info(f"Сегмент {i + 1} сохранен: {output_path}")
 
 
 # Пример использования:

@@ -14,13 +14,13 @@ from normalize_audio import normalize_audio
 from segment_audio import segment_audio
 
 # Папки для обработки
-RAW_FOLDER = "data/raw"
-NOSILENT_FOLDER = "data/nosilent"
-NORMALIZED_FOLDER = "data/normalized"
-DENOISED_FOLDER = "data/denoised"
-SEGMENTS_FOLDER = "data/segments"
-AUGMENTED_FOLDER = "data/augmented"
-MFCC_FOLDER = "data/mfcc"  # Общая папка для всех MFCC файлов
+RAW_FOLDER = "../data/raw"
+NOSILENT_FOLDER = "../data/nosilent"
+NORMALIZED_FOLDER = "../data/normalized"
+DENOISED_FOLDER = "../data/denoised"
+SEGMENTS_FOLDER = "../data/segments"
+AUGMENTED_FOLDER = "../data/augmented"
+MFCC_FOLDER = "../data/mfcc"  # Общая папка для всех MFCC файлов
 METADATA_FILE = "../data/metadata.csv"
 
 # Ограничение ресурсов

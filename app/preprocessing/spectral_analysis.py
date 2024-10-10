@@ -13,7 +13,6 @@ def plot_spectral_analysis(file_paths: list, output_image: str = None):
     file_paths (list): Список путей к входным аудиофайлам (.wav).
     output_image (str): Путь для сохранения спектрограммы в виде изображения (по умолчанию None).
     """
-    print(f"Выполнение спектрального анализа для файлов: {file_paths}")
 
     plt.figure(figsize=(14, 8))  # Размер итогового графика
 
@@ -24,7 +23,6 @@ def plot_spectral_analysis(file_paths: list, output_image: str = None):
 
         # Преобразование в моно, если многоканальное аудио
         if len(audio_data.shape) > 1:
-            print(f"Файл {file_path} многоканальный, преобразование в моно.")
             audio_data = np.mean(audio_data, axis=1)
 
         # Преобразование сигнала в мел-спектрограмму
@@ -49,7 +47,6 @@ def plot_spectral_analysis(file_paths: list, output_image: str = None):
     # Сохранение изображения, если задано
     if output_image:
         plt.savefig(output_image)
-        print(f"Спектрограмма сохранена в файл: {output_image}")
     else:
         plt.show()
 

@@ -1,5 +1,8 @@
 from pydub import AudioSegment, silence
 
+from app.utils.logger import get_logger
+
+logger = get_logger("filter_silent")
 
 def remove_silence(input_wav: str, output_wav: str, silence_thresh: int = -40, min_silence_len: int = 500):
     """
@@ -25,9 +28,9 @@ def remove_silence(input_wav: str, output_wav: str, silence_thresh: int = -40, m
         for chunk in chunks[1:]:
             combined_audio += chunk
         combined_audio.export(output_wav, format="wav")
-        print(f"Тишина удалена, результат сохранен в {output_wav}")
+        logger.info(f"Тишина удалена, результат сохранен в {output_wav}")
     else:
-        print("Все аудио распознано как тишина.")
+        logger.info("Все аудио распознано как тишина.")
 
 
 # Пример использования
