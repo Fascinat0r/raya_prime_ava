@@ -1,9 +1,9 @@
+import os
 import random
 
 import librosa
 import numpy as np
 import soundfile as sf
-from pydub import AudioSegment
 
 
 def pitch_shift(audio_data, sample_rate, n_steps_range=(-3, 3)):
@@ -24,56 +24,73 @@ def time_stretch(audio_data, rate_range=(0.8, 1.5)):
     :param rate_range: Диапазон скорости (значения >1 — ускорение, <1 — замедление).
     """
     rate = random.uniform(rate_range[0], rate_range[1])
-    return librosa.effects.time_stretch(audio_data, rate)
+    return librosa.effects.time_stretch(audio_data, rate=rate)
 
 
-def add_noise(audio_data, noise_factor_range=(0.002, 0.01)):
+def generate_pink_noise(length: int):
     """
-    Добавление белого шума.
+    Генерация розового шума.
+    :param length: Длина массива, равная количеству сэмплов в аудиофайле.
+    :return: Массив numpy с розовым шумом.
+    """
+    uneven = length % 2
+    X = np.random.randn(length // 2 + 1 + uneven) + 1j * np.random.randn(length // 2 + 1 + uneven)
+    S = np.sqrt(np.arange(len(X)) + 1.)  # Убывание частотной мощности
+    y = (np.fft.irfft(X / S)).real
+    if uneven:
+        y = y[:-1]
+    return y[:length]
+
+
+def add_noise(audio_data, sample_rate, noise_type='white', noise_factor_range=(0.002, 0.01),
+              noise_files_folder="data/noises"):
+    """
+    Добавление различных видов шума.
     :param audio_data: Аудиоданные в виде массива numpy.
+    :param sample_rate: Частота дискретизации.
+    :param noise_type: Тип шума ('white', 'pink', 'impulse', 'file').
     :param noise_factor_range: Диапазон уровней шума.
+    :param noise_files_folder: Папка с аудиофайлами, содержащими шумы.
     """
     noise_factor = random.uniform(noise_factor_range[0], noise_factor_range[1])
-    noise = np.random.randn(len(audio_data))
-    return audio_data + noise_factor * noise
 
+    if noise_type == 'white':
+        # Белый шум
+        noise = np.random.randn(len(audio_data))
+    elif noise_type == 'pink':
+        # Розовый шум
+        noise = generate_pink_noise(len(audio_data))
+    elif noise_type == 'impulse':
+        # Импульсный шум
+        noise = np.zeros(len(audio_data))
+        impulse_positions = np.random.randint(0, len(audio_data), size=10)
+        noise[impulse_positions] = np.random.randn(10) * noise_factor
+    elif noise_type == 'file':
+        # Выбираем случайный шумовой файл из папки
+        noise_files = [f for f in os.listdir(noise_files_folder) if f.endswith(('.wav', '.mp3'))]
+        if not noise_files:
+            raise ValueError(f"Не найдено файлов в папке {noise_files_folder}.")
 
-def change_volume(audio_data, sample_rate, gain_range=(-5, 5)):
-    """
-    Изменение громкости.
-    :param audio_data: Аудиоданные в виде массива numpy.
-    :param sample_rate: Частота дискретизации.
-    :param gain_range: Диапазон изменения громкости в dB.
-    """
-    gain = random.randint(gain_range[0], gain_range[1])
-    audio_segment = AudioSegment(
-        audio_data.tobytes(),
-        frame_rate=sample_rate,
-        sample_width=audio_data.dtype.itemsize,
-        channels=1
-    )
-    # Применение изменения громкости
-    altered_segment = audio_segment + gain
-    return np.array(altered_segment.get_array_of_samples())
+        random_noise_file = os.path.join(noise_files_folder, random.choice(noise_files))
 
+        # Загрузка шума из файла и подгонка длины
+        noise, _ = librosa.load(random_noise_file, sr=sample_rate)
+        if len(noise) > len(audio_data):
+            # Если шум длиннее, берем случайный фрагмент той же длины
+            start_idx = random.randint(0, len(noise) - len(audio_data))
+            noise = noise[start_idx:start_idx + len(audio_data)]
+        else:
+            # Если шум короче, повторяем до нужной длины
+            noise = np.tile(noise, int(np.ceil(len(audio_data) / len(noise))))[:len(audio_data)]
+    else:
+        raise ValueError(f"Неизвестный тип шума: {noise_type}")
 
-def apply_reverb(audio_data, sample_rate, reverb_intensity_range=(200, 500)):
-    """
-    Применение реверберации.
-    :param audio_data: Аудиоданные в виде массива numpy.
-    :param sample_rate: Частота дискретизации.
-    :param reverb_intensity_range: Диапазон частот среза для имитации реверберации.
-    """
-    reverb_intensity = random.randint(reverb_intensity_range[0], reverb_intensity_range[1])
-    audio_segment = AudioSegment(
-        audio_data.tobytes(),
-        frame_rate=sample_rate,
-        sample_width=audio_data.dtype.itemsize,
-        channels=1
-    )
-    # Применение реверберации через фильтр
-    reverb_audio = audio_segment.low_pass_filter(reverb_intensity)
-    return np.array(reverb_audio.get_array_of_samples())
+    # Масштабируем шум в зависимости от мощности оригинального аудиосигнала
+    rms_audio = np.sqrt(np.mean(audio_data ** 2))
+    rms_noise = np.sqrt(np.mean(noise ** 2))
+    scaled_noise = noise * (rms_audio / (rms_noise + 1e-6)) * noise_factor
+
+    return audio_data + scaled_noise
 
 
 def high_pass_filter(audio_data, cutoff_range=(200, 1000), sample_rate=16000):
@@ -87,40 +104,50 @@ def high_pass_filter(audio_data, cutoff_range=(200, 1000), sample_rate=16000):
     return librosa.effects.preemphasis(audio_data, coef=cutoff / sample_rate)
 
 
-def augment_file(input_file, output_file):
+def augment_file(input_file, output_file, augmentation_probs=None):
     """
-    Применяет случайную аугментацию к входному аудиофайлу и сохраняет результат.
+    Применяет случайную аугментацию к входному аудиофайлу с учетом вероятностей и сохраняет результат.
     :param input_file: Путь к исходному .wav файлу.
     :param output_file: Путь для сохранения аугментированного .wav файла.
+    :param augmentation_probs: Словарь с шансами выбора каждого типа аугментации.
     """
+    if augmentation_probs is None:
+        augmentation_probs = [0.15, 0.1, 0.2, 0.15, 0.1, 0.2, 0.1]
+
     print(f"Обработка файла: {input_file}")
 
     # Загрузка аудиофайла
     audio_data, sample_rate = librosa.load(input_file, sr=None)
 
-    # Список всех доступных методов аугментации
+    # Список всех доступных методов аугментации и их вероятности
     augmentation_methods = [
         lambda x: pitch_shift(x, sample_rate, n_steps_range=(-1, 1)),
         lambda x: time_stretch(x, rate_range=(0.8, 1.2)),
-        lambda x: add_noise(x, noise_factor_range=(0.002, 0.02)),
-        lambda x: change_volume(x, sample_rate, gain_range=(-10, 10)),
-        lambda x: apply_reverb(x, sample_rate, reverb_intensity_range=(200, 800)),
+        lambda x: add_noise(x, sample_rate, noise_type='white', noise_factor_range=(0.002, 0.02)),
+        lambda x: add_noise(x, sample_rate, noise_type='pink', noise_factor_range=(0.002, 0.02)),
+        lambda x: add_noise(x, sample_rate, noise_type='impulse', noise_factor_range=(0.002, 0.02)),
+        lambda x: add_noise(x, sample_rate, noise_type='file', noise_factor_range=(0.005, 0.10)),
         lambda x: high_pass_filter(x, cutoff_range=(200, 2000), sample_rate=sample_rate)
     ]
-
-    # Выбор случайной аугментации
-    selected_augmentation_idx = random.randint(0, len(augmentation_methods) - 1)
-    selected_augmentation = augmentation_methods[selected_augmentation_idx]
 
     # Названия методов аугментации на русском
     augmentation_methods_names = [
         "Изменение высоты тона",
         "Изменение скорости",
-        "Добавление шума",
-        "Изменение громкости",
-        "Применение реверберации",
+        "Добавление белого шума",
+        "Добавление розового шума",
+        "Добавление импульсного шума",
+        "Добавление шума из файла",
         "Применение высокочастотного фильтра"
     ]
+
+    # Выбор случайной аугментации на основе вероятностей
+    selected_augmentation_idx = random.choices(
+        population=range(len(augmentation_methods)),
+        weights=augmentation_probs,
+        k=1
+    )[0]
+    selected_augmentation = augmentation_methods[selected_augmentation_idx]
 
     print(f"Выбрана аугментация: {augmentation_methods_names[selected_augmentation_idx]}")
 
@@ -132,9 +159,7 @@ def augment_file(input_file, output_file):
     print(f"Аугментированный файл сохранен: {output_file}")
 
 
-# Пример использования
-input_file_path = "data/raw/0__happiness_neutral_h_040.wav"
-output_file_path = "data/augmented/example_augmented.wav"
-
-# Применение случайной аугментации
-augment_file(input_file_path, output_file_path)
+if __name__ == "__main__":
+    # Пример использования
+    augment_file("data/segments/0_0001.wav", "data/segments/0_0001_augmented.wav")
+    augment_file("data/segments/1_0001.wav", "data/segments/1_0001_augmented.wav")

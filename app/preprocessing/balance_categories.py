@@ -11,6 +11,21 @@ SEGMENTS_FOLDER = "data/segments"
 AUGMENTED_FOLDER = "data/augmented"
 
 
+def get_next_segment_number(metadata, prefix):
+    """
+    Возвращает следующий номер сегмента для указанного префикса имени файла.
+    :param metadata: DataFrame с метаданными.
+    :param prefix: Префикс имени файла (например, "target" или "other").
+    :return: Следующий номер сегмента.
+    """
+    existing_filenames = metadata['segment_filename'].tolist()
+    segment_numbers = [int(f.split('_')[-1].replace('.wav', '')) for f in existing_filenames if f.startswith(prefix)]
+    if segment_numbers:
+        return max(segment_numbers) + 1
+    else:
+        return 1
+
+
 def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER, augmented_folder=AUGMENTED_FOLDER):
     """
     Балансировка сегментов целевого и других голосов с помощью аугментации.
@@ -28,13 +43,15 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
     print(f"Сегментов целевого голоса: {len(target_segments)}")
     print(f"Сегментов других голосов: {len(other_segments)}")
 
-    # Определение меньшей категории
+    # Определение недостающей категории
     if len(target_segments) > len(other_segments):
         category_to_augment = other_segments
         augment_type = "other"
+        prefix = "other_augmented"
     else:
         category_to_augment = target_segments
         augment_type = "target"
+        prefix = "target_augmented"
 
     # Количество недостающих сегментов для балансировки
     num_to_augment = abs(len(target_segments) - len(other_segments))
@@ -46,21 +63,24 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
 
     # Создание новых сегментов с помощью аугментации
     new_metadata = []
+    next_segment_number = get_next_segment_number(metadata, prefix)
+
     for _ in range(num_to_augment):
         # Выбор случайного сегмента из недостающей категории
         selected_segment = random.choice(category_to_augment['segment_path'].values)
 
-        # Путь к аугментированному файлу
+        # Генерация нового имени для аугментированного файла с логичной нумерацией
         original_filename = os.path.basename(selected_segment)
-        augmented_filename = f"augmented_{random.randint(1000, 9999)}_{original_filename}"
+        augmented_filename = f"{prefix}_{next_segment_number:04d}.wav"
         augmented_path = os.path.join(augmented_folder, augmented_filename)
 
         # Применение аугментации к выбранному файлу
         augment_file(selected_segment, augmented_path)
+        next_segment_number += 1  # Увеличение номера сегмента для следующего файла
 
         # Обновление метаданных
         segment_metadata = {
-            "original_filename": f"augmented_{augment_type}_{original_filename}",
+            "original_filename": f"{prefix}_{original_filename}",
             "segment_filename": augmented_filename,
             "segment_length_sec":
                 metadata.loc[metadata['segment_path'] == selected_segment, 'segment_length_sec'].values[0],
@@ -69,8 +89,11 @@ def balance_dataset(metadata_file=METADATA_FILE, segments_folder=SEGMENTS_FOLDER
         }
         new_metadata.append(segment_metadata)
 
-    # Добавление новых записей в метаданные
-    metadata = metadata.append(new_metadata, ignore_index=True)
+    # Преобразование нового списка метаданных в DataFrame
+    new_metadata_df = pd.DataFrame(new_metadata)
+
+    # Добавление новых записей в исходные метаданные с помощью pd.concat
+    metadata = pd.concat([metadata, new_metadata_df], ignore_index=True)
 
     # Сохранение обновленных метаданных
     metadata.to_csv(metadata_file, index=False)
