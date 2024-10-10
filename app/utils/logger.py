@@ -1,42 +1,39 @@
 import logging
 import os
 
+# Папка для хранения логов
+LOG_FOLDER = "logs"
+if not os.path.exists(LOG_FOLDER):
+    os.makedirs(LOG_FOLDER)
 
-# Создание конфигурации логирования
-def setup_logger(log_file="logs.log") -> logging.Logger:
+
+# Настройки логгера
+def get_logger(logger_name):
     """
-    Создает и настраивает глобальный логгер для использования в проекте.
-    :param log_file: Имя файла для сохранения логов.
-    :return: Настроенный логгер.
+    Возвращает настроенный логгер с именем `logger_name`.
+
+    :param logger_name: Имя логгера.
+    :return: Объект логгера.
     """
-    # Убедимся, что директория для логов существует
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
 
-    # Настройка логгера
-    _logger = logging.getLogger("data_preparation_logger")
-    _logger.setLevel(logging.DEBUG)  # Устанавливаем уровень логирования на DEBUG для детальной информации
+    # Создание обработчика для вывода в файл
+    file_handler = logging.FileHandler(os.path.join(LOG_FOLDER, f"{logger_name}.log"), mode='w', encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
 
-    # Создание формата логирования
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-    # Консольный обработчик логов (для вывода на экран)
+    # Создание обработчика для вывода в консоль
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)  # На экран выводятся только информационные и выше уровни
+    console_handler.setLevel(logging.INFO)
+
+    # Формат логов
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
 
-    # Файловый обработчик логов
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.DEBUG)  # В файл записываются все уровни логов
-    file_handler.setFormatter(formatter)
+    # Добавление обработчиков к логгеру
+    if not logger.hasHandlers():
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
 
-    # Добавление обработчиков в логгер
-    _logger.addHandler(console_handler)
-    _logger.addHandler(file_handler)
-
-    return _logger
-
-
-# Глобальный логгер для использования
-logger = setup_logger("logs.log")
+    return logger
