@@ -89,8 +89,9 @@ def reduce_noise_segmented(audio_data, sample_rate, chunk_size, prop_decrease, s
 
 
 # Пример использования:
-input_file_path = "data/normalized/example.wav"
-output_file_path = "data/denoised/example.wav"
+if __name__ == "__main__":
+    input_file_path = "data/normalized/example.wav"
+    output_file_path = "data/denoised/example.wav"
 
-# Установить параметры для более мягкого шумоподавления
-denoise_wav(input_file_path, output_file_path, prop_decrease=0.7, stationary=True, n_std_thresh_stationary=1.2)
+    # Установить параметры для более мягкого шумоподавления
+    denoise_wav(input_file_path, output_file_path, prop_decrease=0.7, stationary=True, n_std_thresh_stationary=1.2)
