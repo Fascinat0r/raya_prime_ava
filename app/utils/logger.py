@@ -3,7 +3,7 @@ import os
 
 
 # Создание конфигурации логирования
-def setup_logger(log_file="logs.log"):
+def setup_logger(log_file="logs.log") -> logging.Logger:
     """
     Создает и настраивает глобальный логгер для использования в проекте.
     :param log_file: Имя файла для сохранения логов.
@@ -15,8 +15,8 @@ def setup_logger(log_file="logs.log"):
         os.makedirs(log_dir)
 
     # Настройка логгера
-    logger = logging.getLogger("data_preparation_logger")
-    logger.setLevel(logging.DEBUG)  # Устанавливаем уровень логирования на DEBUG для детальной информации
+    _logger = logging.getLogger("data_preparation_logger")
+    _logger.setLevel(logging.DEBUG)  # Устанавливаем уровень логирования на DEBUG для детальной информации
 
     # Создание формата логирования
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -32,10 +32,10 @@ def setup_logger(log_file="logs.log"):
     file_handler.setFormatter(formatter)
 
     # Добавление обработчиков в логгер
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+    _logger.addHandler(console_handler)
+    _logger.addHandler(file_handler)
 
-    return logger
+    return _logger
 
 
 # Глобальный логгер для использования

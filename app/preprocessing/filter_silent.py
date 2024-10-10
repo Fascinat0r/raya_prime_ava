@@ -32,6 +32,6 @@ def remove_silence(input_wav: str, output_wav: str, silence_thresh: int = -40, m
 
 # Пример использования
 if __name__ == "__main__":
-    input_file = "data/raw/example.wav"
-    output_file = "data/nosilent/example.wav"
+    input_file = "../data/raw/example.wav"
+    output_file = "../data/nosilent/example.wav"
     remove_silence(input_file, output_file)

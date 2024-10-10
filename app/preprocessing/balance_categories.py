@@ -6,7 +6,7 @@ import pandas as pd
 from augmentation import augment_file
 
 # Пути к файлам и папкам
-METADATA_FILE = "data/metadata.csv"
+METADATA_FILE = "../data/metadata.csv"
 SEGMENTS_FOLDER = "data/segments"
 AUGMENTED_FOLDER = "data/augmented"
 

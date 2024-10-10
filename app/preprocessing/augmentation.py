@@ -161,5 +161,5 @@ def augment_file(input_file, output_file, augmentation_probs=None):
 
 if __name__ == "__main__":
     # Пример использования
-    augment_file("data/segments/0_0001.wav", "data/segments/0_0001_augmented.wav")
-    augment_file("data/segments/1_0001.wav", "data/segments/1_0001_augmented.wav")
+    augment_file("../data/segments/0_0001.wav", "../data/segments/0_0001_augmented.wav")
+    augment_file("../data/segments/1_0001.wav", "../data/segments/1_0001_augmented.wav")

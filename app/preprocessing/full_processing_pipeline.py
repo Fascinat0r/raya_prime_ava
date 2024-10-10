@@ -21,7 +21,7 @@ DENOISED_FOLDER = "data/denoised"
 SEGMENTS_FOLDER = "data/segments"
 AUGMENTED_FOLDER = "data/augmented"
 MFCC_FOLDER = "data/mfcc"  # Общая папка для всех MFCC файлов
-METADATA_FILE = "data/metadata.csv"
+METADATA_FILE = "../data/metadata.csv"
 
 # Ограничение ресурсов
 MAX_PROCESSES = 4  # Максимальное количество одновременно выполняемых процессов

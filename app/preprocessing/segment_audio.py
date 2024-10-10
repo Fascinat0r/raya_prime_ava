@@ -49,8 +49,8 @@ def segment_audio(input_file: str, output_folder: str, segment_length: float = 5
 
 # Пример использования:
 if __name__ == "__main__":
-    input_file_path = "data/normalized/example.wav"
-    output_folder_path = "data/segments"
+    input_file_path = "../data/normalized/example.wav"
+    output_folder_path = "../data/segments"
 
     # Разделение на сегменты длиной 5 секунд с перекрытием 50%
     segment_audio(input_file_path, output_folder_path, segment_length=5.0, overlap=0.5)

@@ -28,7 +28,7 @@ def normalize_audio(input_file: str, output_file: str, target_dBFS: float = -20.
 
 # Пример использования:
 if __name__ == "__main__":
-    input_file_path = "data/nosilent/example.wav"
-    output_file_path = "data/normalized/example.wav"
+    input_file_path = "../data/nosilent/example.wav"
+    output_file_path = "../data/normalized/example.wav"
 
     normalize_audio(input_file_path, output_file_path)

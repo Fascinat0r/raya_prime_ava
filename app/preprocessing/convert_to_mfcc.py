@@ -31,8 +31,8 @@ def extract_mfcc(audio_file, output_file, n_mfcc=20, sr=16000, n_fft=2048, hop_l
 
 # Пример использования:
 if __name__ == "__main__":
-    input_file = "data/augmented/target_augmented_1245.wav"  # Путь к входному аудиофайлу
-    output_file = "data/mfcc/example_mfcc.npy"  # Путь для сохранения выходного .npy файла
+    input_file = "../data/augmented/target_augmented_1245.wav"  # Путь к входному аудиофайлу
+    output_file = "../data/mfcc/example_mfcc.npy"  # Путь для сохранения выходного .npy файла
 
     # Убедиться, что выходная папка существует
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
