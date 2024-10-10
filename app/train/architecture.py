@@ -33,6 +33,7 @@ def build_base_network(input_shape):
     return Model(inputs, x, name='base_network')
 
 
+@tf.keras.utils.register_keras_serializable()
 def euclidean_distance(vectors):
     """
     Вычисление евклидова расстояния между двумя векторами с использованием tf.norm.
@@ -44,6 +45,7 @@ def euclidean_distance(vectors):
     return tf.norm(featA - featB, ord='euclidean', axis=1, keepdims=True)
 
 
+@tf.keras.utils.register_keras_serializable()
 def cosine_similarity(vectors):
     """
     Вычисление косинусного сходства между двумя векторами.
@@ -90,7 +92,7 @@ def build_siamese_network(input_shape, distance_metric='euclidean'):
 
 if __name__ == "__main__":
     # Пример инициализации сети
-    input_shape = (20, 200, 1)  # Размер входного изображения (например, 20 MFCC коэффициентов на 200 временных окон)
+    input_shape = (40, 157, 1)  # Размер входного изображения (например, 20 MFCC коэффициентов на 200 временных окон)
 
     # Сиамская модель с евклидовым расстоянием
     siamese_model = build_siamese_network(input_shape, distance_metric='euclidean')

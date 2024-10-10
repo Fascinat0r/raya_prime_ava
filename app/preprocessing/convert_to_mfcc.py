@@ -1,40 +1,57 @@
 import os
 
-import librosa
 import numpy as np
+import torchaudio
+from torchaudio.transforms import MFCC
 
 from app.utils.logger import get_logger  # Подключение логгера
 
 # Инициализация логгера
 logger = get_logger("mfcc_extraction")
-logger.level = 0
 
 
-def extract_mfcc(audio_file, output_file, n_mfcc=20, sr=16000, n_fft=2048, hop_length=512, fixed_length=157):
+def extract_mfcc(audio_file, output_file, n_mfcc=40, sr=16000, n_fft=400, hop_length=160, fixed_length=157):
     """
-    Извлечение MFCC признаков из аудиофайла и сохранение в виде .npy файла с гарантированной фиксированной длиной.
+    Извлечение MFCC признаков из аудиофайла с использованием torchaudio и сохранение в виде .npy файла с гарантированной фиксированной длиной.
 
     :param audio_file: Путь к входному .wav файлу.
     :param output_file: Путь для сохранения выходного .npy файла.
     :param n_mfcc: Количество коэффициентов MFCC.
     :param sr: Частота дискретизации (по умолчанию 16 кГц).
-    :param n_fft: Размер окна для FFT (по умолчанию 2048).
-    :param hop_length: Шаг окон (по умолчанию 512).
+    :param n_fft: Размер окна для FFT.
+    :param hop_length: Шаг окон.
     :param fixed_length: Фиксированное количество временных окон (целевое значение длины временного измерения).
     """
     logger.info(f"Загрузка аудиофайла: {audio_file}")
 
-    # Загрузка аудиофайла с целевой частотой дискретизации
-    y, sample_rate = librosa.load(audio_file, sr=sr)
+    # Загрузка аудиофайла с использованием torchaudio
+    waveform, sample_rate = torchaudio.load(audio_file)
 
-    logger.info(f"Извлечение MFCC признаков для файла: {audio_file}")
+    # Приведение частоты дискретизации к целевой, если отличается
+    if sample_rate != sr:
+        resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=sr)
+        waveform = resampler(waveform)
+        sample_rate = sr
+
+    logger.info(f"Извлечение MFCC признаков для файла: {audio_file} с частотой дискретизации {sample_rate} Гц")
+
+    # Инициализация преобразования для извлечения MFCC
+    mfcc_transform = MFCC(
+        sample_rate=sample_rate,
+        n_mfcc=n_mfcc,
+        melkwargs={
+            "n_fft": n_fft,
+            "hop_length": hop_length,
+            "n_mels": n_mfcc,
+            "center": False
+        }
+    )
+
     # Извлечение MFCC признаков
-    mfcc_features = librosa.feature.mfcc(y=y, sr=sample_rate, n_mfcc=n_mfcc, n_fft=n_fft, hop_length=hop_length)
+    mfcc_features = mfcc_transform(waveform).squeeze(0).T  # Получаем матрицу размером (временные шаги, n_mfcc)
 
-    # Транспонирование, чтобы получить матрицу (время, n_mfcc)
-    mfcc_features = mfcc_features.T
-
-    # Логируем изначальный размер
+    # Преобразование MFCC признаков в numpy и логирование размеров
+    mfcc_features = mfcc_features.numpy()
     logger.debug(f"Изначальный размер MFCC: {mfcc_features.shape}")
 
     # Гарантирование фиксированной длины (дополнение или обрезка до фиксированной длины)

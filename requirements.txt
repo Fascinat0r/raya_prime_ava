@@ -67,3 +67,6 @@ wrapt==1.16.0
 noisereduce~=3.0.3
 pydub~=0.25.1
 tqdm~=4.66.5
+seaborn~=0.13.2
+torch~=2.4.1
+pandas~=2.2.3

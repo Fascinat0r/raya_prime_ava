@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
@@ -21,7 +22,21 @@ PATIENCE = 5  # Количество эпох без улучшений для �
 MODEL_SAVE_PATH = "../data/models/siamese_model.keras"  # Путь для сохранения обученной модели
 
 # Размер входных данных для модели
-INPUT_SHAPE = (157, 20, 1)  # (временные шаги, количество MFCC, 1 канал)
+INPUT_SHAPE = (157, 40, 1)  # (временные шаги, количество MFCC, 1 канал)
+
+
+@tf.keras.utils.register_keras_serializable()
+def contrastive_loss(y_true, y_pred, margin=1.0):
+    """
+    Контрастная функция потерь.
+    :param y_true: Метки классов (1 — положительные пары, 0 — отрицательные).
+    :param y_pred: Расстояние, предсказанное моделью.
+    :param margin: Маржинальное значение для отрицательных пар.
+    :return: Значение контрастной функции потерь.
+    """
+    square_pred = K.square(y_pred)
+    margin_square = K.square(K.maximum(margin - y_pred, 0))
+    return K.mean(y_true * square_pred + (1 - y_true) * margin_square)
 
 
 def load_data(file_path):
@@ -67,9 +82,9 @@ def train_siamese_model(train_data, validation_data, learning_rate, batch_size, 
     logger.info("Инициализация сиамской сети...")
     siamese_network = build_siamese_network(input_shape=INPUT_SHAPE, distance_metric='euclidean')
 
-    # Компиляция модели
-    siamese_network.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['accuracy'])
-    logger.info(f"Модель с расстоянием 'euclidean' успешно скомпилирована!")
+    # Компиляция модели с контрастной функцией потерь
+    siamese_network.compile(optimizer=Adam(learning_rate=learning_rate), loss=contrastive_loss, metrics=['accuracy'])
+    logger.info("Модель с контрастной функцией потерь успешно скомпилирована!")
 
     # Callbacks для мониторинга
     early_stopping = EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True, verbose=1)
