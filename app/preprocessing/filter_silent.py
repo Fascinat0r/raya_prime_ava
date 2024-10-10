@@ -4,6 +4,7 @@ from app.utils.logger import get_logger
 
 logger = get_logger("filter_silent")
 
+
 def remove_silence(input_wav: str, output_wav: str, silence_thresh: int = -40, min_silence_len: int = 500):
     """
     Удаляет тихие моменты без голоса из .wav файла.

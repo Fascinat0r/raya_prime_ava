@@ -4,12 +4,12 @@ import librosa
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.optimizers import Adam
-
-from utils.my_logger import logger
 from voice_model_generation.data_loader import load_all_files
 from voice_model_generation.model import create_siamese_network
 from voice_model_generation.preprocessing import extract_audio_segments, normalize_segments
 from voice_model_generation.train_test import plot_confusion_matrix, get_early_stopping_callback
+
+from utils.my_logger import logger
 
 # Пути к данным
 BASE_DIR = os.path.dirname(__file__)

@@ -6,12 +6,15 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
+from app.utils.logger import get_logger
 from augmentation import augment_file
 from convert_to_mfcc import extract_mfcc
 from denoise_audio import denoise_wav
 from filter_silent import remove_silence
 from normalize_audio import normalize_audio
 from segment_audio import segment_audio
+
+logger = get_logger("full_processing_pipeline")
 
 # Папки для обработки
 RAW_FOLDER = "../data/raw"
@@ -57,7 +60,7 @@ def clear_folders(folders):
         if os.path.exists(folder):
             shutil.rmtree(folder)  # Удаляет всю папку и её содержимое
             os.makedirs(folder)  # Создает пустую папку заново
-            print(f"Папка {folder} очищена.")
+            logger.info(f"Папка {folder} очищена.")
 
 
 def get_next_mfcc_id():
@@ -169,7 +172,7 @@ def augment_and_extract_mfcc(metadata_file=METADATA_FILE):
     # Сохранение обновленных метаданных
     mfcc_metadata_df = pd.DataFrame(mfcc_metadata)
     mfcc_metadata_df.to_csv(metadata_file, index=False)
-    print(f"Метаданные с MFCC признаками сохранены в {metadata_file}.")
+    logger.info(f"Метаданные с MFCC признаками сохранены в {metadata_file}.")
 
 
 def run_parallel_processing(max_processes=MAX_PROCESSES):
@@ -199,11 +202,11 @@ def run_parallel_processing(max_processes=MAX_PROCESSES):
                 if file_metadata:
                     all_metadata.extend(file_metadata)
             except Exception as e:
-                print(f"Ошибка при обработке файла {futures[future]}: {e}")
+                logger.info(f"Ошибка при обработке файла {futures[future]}: {e}")
 
     metadata_df = pd.DataFrame(all_metadata)
     metadata_df.to_csv(METADATA_FILE, index=False)
-    print(f"Метаданные сохранены в {METADATA_FILE}")
+    logger.info(f"Метаданные сохранены в {METADATA_FILE}")
 
     # Аугментация и преобразование в MFCC
     augment_and_extract_mfcc()
@@ -212,4 +215,4 @@ def run_parallel_processing(max_processes=MAX_PROCESSES):
 if __name__ == "__main__":
     start_time = time.time()
     run_parallel_processing()
-    print(f"Общее время выполнения: {time.time() - start_time:.2f} секунд.")
+    logger.info(f"Общее время выполнения: {time.time() - start_time:.2f} секунд.")
