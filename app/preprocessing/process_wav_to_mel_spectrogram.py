@@ -48,7 +48,7 @@ def load_wav_file(file_path):
 
 def calculate_mel_fbanks(sample_rate, n_mels=64, f_min=0.0, f_max=None, n_fft=2048):
     """
-    Рассчитывает мел-фильтры (Mel FBanks) один раз.
+    Рассчитывает мел-фильтры (Mel FBanks).
 
     Аргументы:
     sample_rate (int): Частота дискретизации.
@@ -91,27 +91,31 @@ def segment_waveform(waveform, segment_length_samples, overlap_samples):
     return segments
 
 
-def process_wav_to_mel_spectrogram(file_path, overlap=0.3, hop_length=512, n_fft=2048, n_mels=64):
+def process_wav_to_mel_spectrogram(file_path, expected_shape=(64, 64), overlap=0.3, hop_length=512, n_fft=2048,
+                                   n_mels=64):
     """
     Основная функция для обработки WAV-файла с сегментацией и конвертацией в мел-спектрограммы.
 
     Аргументы:
     file_path (str): Путь к WAV файлу.
+    expected_shape (tuple): Ожидаемый размер мел-спектрограммы (строки, столбцы).
     overlap (float): Процент перекрытия сегментов.
     hop_length (int): Шаг окна.
     n_fft (int): Размер окна FFT.
     n_mels (int): Количество фильтров Мела.
 
     Возвращает:
-    List[Tensor]: Список мел-спектрограмм размером 64x64.
+    List[Tensor]: Список мел-спектрограмм размером expected_shape.
     """
+    expected_rows, expected_columns = expected_shape
+
     # Загрузить аудиофайл
     waveform, sample_rate = load_wav_file(file_path)
     if waveform is None:
         return None
 
-    # Рассчитать длину сегмента в сэмплах для 64 фреймов
-    segment_length_samples = hop_length * (64 - 1) + n_fft
+    # Рассчитать длину сегмента в сэмплах для нужного количества фреймов
+    segment_length_samples = hop_length * (expected_columns - 1) + n_fft
     logger.info(f"Количество сэмплов в сегменте: {segment_length_samples}")
 
     # Рассчитать перекрытие в сэмплах
@@ -132,23 +136,23 @@ def process_wav_to_mel_spectrogram(file_path, overlap=0.3, hop_length=512, n_fft
         # Применение мел-фильтров к спектрограмме (создание мел-спектрограммы)
         mel_spectrogram = torch.matmul(magnitude.permute(0, 2, 1), mel_filter_banks)
 
-        # Обрезаем или дополняем до 64x64
-        if mel_spectrogram.shape[1] >= 64:
-            logger.warning(f"Размер сегмента {i + 1} больше 64. {mel_spectrogram.shape[1]}")
-            mel_spectrogram = mel_spectrogram[:, :64, :]
+        # Обрезаем или дополняем до expected_shape
+        if mel_spectrogram.shape[1] >= expected_rows:
+            logger.debug(f"Размер сегмента {i + 1} больше {expected_rows}. {mel_spectrogram.shape[1]}")
+            mel_spectrogram = mel_spectrogram[:, :expected_rows, :]
         else:
-            logger.warning(f"Размер сегмента {i + 1} меньше 64. {mel_spectrogram.shape[1]}")
+            logger.debug(f"Размер сегмента {i + 1} меньше {expected_rows}. {mel_spectrogram.shape[1]}")
             padding = torch.zeros(
-                (mel_spectrogram.shape[0], 64 - mel_spectrogram.shape[1], mel_spectrogram.shape[2])).to(
+                (mel_spectrogram.shape[0], expected_rows - mel_spectrogram.shape[1], mel_spectrogram.shape[2])).to(
                 mel_spectrogram.device)
             mel_spectrogram = torch.cat((mel_spectrogram, padding), dim=1)
 
         # Проверка на правильность формы
-        if mel_spectrogram.shape == (1, 64, 64):
+        if mel_spectrogram.shape == (1, expected_rows, expected_columns):
             mel_spectrogram_list.append(mel_spectrogram)
-            logger.info(f"Сегмент {i + 1} обработан. Форма мел-спектрограммы: {mel_spectrogram.shape}")
+            logger.debug(f"Сегмент {i + 1} обработан. Форма мел-спектрограммы: {mel_spectrogram.shape}")
         else:
-            logger.warning(f"Сегмент {i + 1} пропущен. Неправильная форма: {mel_spectrogram.shape}")
+            logger.info(f"Сегмент {i + 1} пропущен. Неправильная форма: {mel_spectrogram.shape}")
 
     logger.info(f"Всего извлечено сегментов: {len(mel_spectrogram_list)}")
     return mel_spectrogram_list
@@ -158,8 +162,9 @@ def process_wav_to_mel_spectrogram(file_path, overlap=0.3, hop_length=512, n_fft
 if __name__ == "__main__":
     input_file_path = "../data/normalized/example.wav"
 
-    # Обработка WAV-файла с сегментацией и извлечение мел-спектрограмм
-    mel_spectrograms = process_wav_to_mel_spectrogram(input_file_path, hop_length=512, n_fft=2048)
+    # Обработка WAV-файла с сегментацией и извлечение мел-спектрограмм с ожидаемой формой 64x64
+    mel_spectrograms = process_wav_to_mel_spectrogram(input_file_path, expected_shape=(64, 64), hop_length=512,
+                                                      n_fft=2048)
 
     # Проверка результата
     if mel_spectrograms:
