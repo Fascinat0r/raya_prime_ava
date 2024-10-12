@@ -1,141 +1,119 @@
 import os
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 import seaborn as sns
-import tensorflow as tf
 
-from app.train.architecture import euclidean_distance, \
-    cosine_similarity  # Импорт функции для корректной загрузки модели
-from app.train.train import contrastive_loss
-from app.utils.logger import get_logger
+# Путь к папке с MFCC файлами
+MFCC_FOLDER = "../data/mfcc"
 
-# Инициализация логгера
-logger = get_logger("diagnostic")
-
-# Пути к данным и модели
-TRAIN_DATA_FILE = "../data/train/train_pairs.npz"
-VALIDATION_DATA_FILE = "../data/train/validation_pairs.npz"
-MODEL_PATH = "../data/models/siamese_model.keras"
-
-# Размер входных данных для модели
-INPUT_SHAPE = (157, 40, 1)  # (временные шаги, количество MFCC, 1 канал)
-
-# Загрузка модели с пользовательской функцией
-if os.path.exists(MODEL_PATH):
-    logger.info(f"Загрузка модели из {MODEL_PATH}")
-    model = tf.keras.models.load_model(MODEL_PATH, custom_objects={"euclidean_distance": euclidean_distance,
-                                                                   "cosine_similarity": cosine_similarity,
-                                                                   "contrastive_loss": contrastive_loss})
-    logger.info("Модель успешно загружена!")
-
-
-def load_data(file_path):
+def load_all_mfcc_files(mfcc_folder):
     """
-    Загружает обучающие или валидационные данные из .npz файла.
+    Загружает все MFCC файлы из указанной папки и возвращает список массивов.
 
-    :param file_path: Путь к файлу данных.
-    :return: Кортеж из трех элементов (X1, X2, y).
+    :param mfcc_folder: Путь к папке с MFCC файлами.
+    :return: Список массивов MFCC.
     """
-    logger.info(f"Загрузка данных из {file_path}...")
-    data = np.load(file_path)
-    return data['X1'], data['X2'], data['y']
+    mfcc_list = []
+    file_shapes = []  # Список для хранения форм файлов
+    for filename in os.listdir(mfcc_folder):
+        if filename.endswith(".npy"):
+            file_path = os.path.join(mfcc_folder, filename)
+            mfcc = np.load(file_path)
+            mfcc_list.append(mfcc)
+            file_shapes.append(mfcc.shape)
+    return mfcc_list, file_shapes
 
-
-def check_labels_distribution(y_train, y_val):
+def analyze_mfcc_shapes(file_shapes):
     """
-    Проверка распределения меток в тренировочных и валидационных данных.
+    Анализ форм всех MFCC файлов.
 
-    :param y_train: Метки тренировочных данных.
-    :param y_val: Метки валидационных данных.
+    :param file_shapes: Список форм всех файлов.
     """
-    logger.info("Проверка распределения меток в данных...")
+    # Считаем количество файлов каждой формы
+    unique_shapes, counts = np.unique(file_shapes, return_counts=True)
+    print(f"Уникальные формы MFCC: {dict(zip(unique_shapes, counts))}")
 
-    unique_train, counts_train = np.unique(y_train, return_counts=True)
-    unique_val, counts_val = np.unique(y_val, return_counts=True)
+    # Проверка на наличие неоднородных форм
+    if len(unique_shapes) > 1:
+        print(f"Внимание! Найдено несколько уникальных форм: {unique_shapes}")
+    else:
+        print(f"Все MFCC файлы имеют одинаковую форму: {unique_shapes[0]}")
 
-    logger.info(f"Распределение меток в тренировочных данных: {dict(zip(unique_train, counts_train))}")
-    logger.info(f"Распределение меток в валидационных данных: {dict(zip(unique_val, counts_val))}")
+def visualize_mfcc_distribution(mfcc_list):
+    """
+    Визуализация статистических характеристик MFCC для всех файлов.
 
-    # Визуализация распределения
-    plt.figure(figsize=(8, 4))
+    :param mfcc_list: Список массивов MFCC.
+    """
+    means = [np.mean(mfcc) for mfcc in mfcc_list]
+    stds = [np.std(mfcc) for mfcc in mfcc_list]
+
+    plt.figure(figsize=(12, 5))
+
+    # Гистограмма средних значений MFCC
     plt.subplot(1, 2, 1)
-    sns.barplot(x=unique_train, y=counts_train)
-    plt.title("Распределение меток в тренировочных данных")
+    plt.hist(means, bins=30, color='skyblue')
+    plt.title("Распределение средних значений MFCC")
+    plt.xlabel("Среднее значение")
+    plt.ylabel("Количество файлов")
+
+    # Гистограмма стандартных отклонений MFCC
     plt.subplot(1, 2, 2)
-    sns.barplot(x=unique_val, y=counts_val)
-    plt.title("Распределение меток в валидационных данных")
+    plt.hist(stds, bins=30, color='salmon')
+    plt.title("Распределение стандартных отклонений MFCC")
+    plt.xlabel("Стандартное отклонение")
+    plt.ylabel("Количество файлов")
+
     plt.show()
 
-
-def visualize_mfcc_pair(X1, X2, y, index=0):
+def plot_random_mfcc_heatmaps(mfcc_list, num_samples=5):
     """
-    Визуализация пары MFCC и их метки.
+    Визуализация тепловых карт случайных MFCC файлов.
 
-    :param X1: Первый элемент пары.
-    :param X2: Второй элемент пары.
-    :param y: Метка пары.
-    :param index: Индекс пары для визуализации.
+    :param mfcc_list: Список массивов MFCC.
+    :param num_samples: Количество случайных файлов для визуализации.
     """
-    logger.info(f"Визуализация пары MFCC с индексом {index}. Метка: {y[index]}")
-
-    mfcc1 = X1[index].reshape(X1.shape[1], X1.shape[2])
-    mfcc2 = X2[index].reshape(X2.shape[1], X2.shape[2])
-
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.imshow(mfcc1.T, cmap='viridis', aspect='auto')
-    plt.title("MFCC 1")
-    plt.colorbar()
-    plt.subplot(1, 2, 2)
-    plt.imshow(mfcc2.T, cmap='viridis', aspect='auto')
-    plt.title(f"MFCC 2 (Метка: {y[index]})")
-    plt.colorbar()
+    plt.figure(figsize=(15, num_samples * 3))
+    for i in range(num_samples):
+        mfcc = random.choice(mfcc_list)
+        plt.subplot(num_samples, 1, i + 1)
+        sns.heatmap(mfcc.T, cmap='viridis', cbar=True)
+        plt.title(f"Тепловая карта MFCC (Пример {i + 1})")
     plt.show()
 
-
-def visualize_model_activations(model, X1, X2, index=0):
+def check_for_missing_values(mfcc_list):
     """
-    Визуализация активаций модели для одной пары.
+    Проверка на наличие пропущенных значений (NaN или Inf) в данных MFCC.
 
-    :param model: Обученная модель сиамской сети.
-    :param X1: Первый элемент пары.
-    :param X2: Второй элемент пары.
-    :param index: Индекс пары для визуализации.
+    :param mfcc_list: Список массивов MFCC.
     """
-    logger.info(f"Визуализация активаций модели для пары с индексом {index}...")
+    has_nan = any(np.isnan(mfcc).any() for mfcc in mfcc_list)
+    has_inf = any(np.isinf(mfcc).any() for mfcc in mfcc_list)
 
-    # Извлечение активаций из модели
-    intermediate_layer_model = tf.keras.Model(inputs=model.input, outputs=[layer.output for layer in model.layers])
-    activations = intermediate_layer_model.predict([X1[index:index + 1], X2[index:index + 1]])
+    if has_nan:
+        print("Предупреждение: В некоторых файлах MFCC присутствуют NaN значения!")
+    else:
+        print("NaN значения не найдены.")
 
-    # Визуализация активаций
-    for i, activation in enumerate(activations):
-        if len(activation.shape) == 4:  # Если это сверточный слой
-            plt.figure(figsize=(16, 4))
-            plt.suptitle(f"Активации сверточного слоя {i + 1}")
-            for j in range(min(activation.shape[-1], 8)):  # Показываем первые 8 карт признаков
-                plt.subplot(1, 8, j + 1)
-                plt.imshow(activation[0, :, :, j], cmap='viridis')
-                plt.axis('off')
-            plt.show()
-
+    if has_inf:
+        print("Предупреждение: В некоторых файлах MFCC присутствуют Inf значения!")
+    else:
+        print("Inf значения не найдены.")
 
 if __name__ == "__main__":
-    # Загрузка тренировочных и валидационных данных
-    X1_train, X2_train, y_train = load_data(TRAIN_DATA_FILE)
-    X1_val, X2_val, y_val = load_data(VALIDATION_DATA_FILE)
+    # Загрузка всех MFCC файлов
+    mfcc_files, file_shapes = load_all_mfcc_files(MFCC_FOLDER)
 
-    # Проверка распределения меток
-    check_labels_distribution(y_train, y_val)
+    # Анализ форм файлов
+    analyze_mfcc_shapes(file_shapes)
 
-    # Визуализация случайных пар MFCC
-    visualize_mfcc_pair(X1_train, X2_train, y_train, index=random.randint(0, len(y_train) - 1))
-    visualize_mfcc_pair(X1_val, X2_val, y_val, index=random.randint(0, len(y_val) - 1))
+    # Визуализация распределения средних значений и стандартных отклонений
+    visualize_mfcc_distribution(mfcc_files)
 
-    # Загрузка модели и визуализация активаций (если модель уже обучена)
-    if os.path.exists(MODEL_PATH):
-        logger.info(f"Загрузка модели из {MODEL_PATH}")
-        model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-        visualize_model_activations(model, X1_train, X2_train, index=0)
+    # Визуализация тепловых карт для случайных MFCC
+    plot_random_mfcc_heatmaps(mfcc_files, num_samples=5)
+
+    # Проверка на наличие NaN и Inf значений
+    check_for_missing_values(mfcc_files)

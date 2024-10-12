@@ -22,7 +22,7 @@ PATIENCE = 5  # Количество эпох без улучшений для �
 MODEL_SAVE_PATH = "../data/models/siamese_model.keras"  # Путь для сохранения обученной модели
 
 # Размер входных данных для модели
-INPUT_SHAPE = (157, 40, 1)  # (временные шаги, количество MFCC, 1 канал)
+INPUT_SHAPE = (157, 20, 1)  # (временные шаги, количество MFCC, 1 канал)
 
 
 @tf.keras.utils.register_keras_serializable()
@@ -48,7 +48,14 @@ def load_data(file_path):
     """
     logger.info(f"Загрузка данных из {file_path}...")
     data = np.load(file_path)
-    return data['X1'], data['X2'], data['y']
+    X1, X2, y = data['X1'], data['X2'], data['y']
+
+    # Добавление оси канала, если её нет
+    if len(X1.shape) == 3:
+        X1 = np.expand_dims(X1, axis=-1)
+        X2 = np.expand_dims(X2, axis=-1)
+
+    return X1, X2, y
 
 
 def create_tf_dataset(X1, X2, y, batch_size):
@@ -62,8 +69,11 @@ def create_tf_dataset(X1, X2, y, batch_size):
     :return: Объект tf.data.Dataset.
     """
     logger.info("Создание tf.data.Dataset...")
+
+    # Корректное создание Dataset с нужной структурой
     dataset = tf.data.Dataset.from_tensor_slices(((X1, X2), y))
     dataset = dataset.shuffle(buffer_size=1024).batch(batch_size).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
     return dataset
 
 

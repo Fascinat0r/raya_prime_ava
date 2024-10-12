@@ -1,60 +1,167 @@
+import logging
 import os
 
-import soundfile as sf
+import torch
+import torchaudio
+import torchaudio.functional as F
 
-from app.utils.logger import get_logger
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("mel_fbank_conversion")
 
-logger = get_logger("segment_audio")
 
-
-def segment_audio(input_file: str, output_folder: str, segment_length: float = 5.0, overlap: float = 0.5):
+def load_wav_file(file_path):
     """
-    Разделяет аудиофайл на сегменты заданной длины и перекрытием.
+    Загружает аудиофайл WAV формата и выводит его основные характеристики.
 
     Аргументы:
-    input_file (str): Путь к входному .wav файлу.
-    output_folder (str): Путь для сохранения сегментов.
-    segment_length (float): Длина каждого сегмента в секундах (по умолчанию 5.0 секунд).
-    overlap (float): Степень перекрытия между сегментами (значения от 0 до 1, по умолчанию 0.5).
+    file_path (str): Путь к WAV файлу.
+
+    Возвращает:
+    waveform (Tensor): Аудиосигнал в формате Tensor.
+    sample_rate (int): Частота дискретизации.
     """
-    # Убеждаемся, что выходная папка существует
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    if not os.path.exists(file_path):
+        logger.error(f"Файл не найден: {file_path}")
+        return None, None
 
-    # Загружаем аудиофайл
-    data, sample_rate = sf.read(input_file)
+    waveform, sample_rate = torchaudio.load(file_path)
 
-    # Рассчитываем длину каждого сегмента и шаг между сегментами в выборках
-    segment_samples = int(segment_length * sample_rate)
-    step_size = int(segment_samples * (1 - overlap))
+    # Преобразуем стерео в моно (если требуется)
+    if waveform.shape[0] > 1:
+        logger.info(f"Преобразование стерео в моно.")
+        waveform = torch.mean(waveform, dim=0, keepdim=True)
 
-    # Количество сегментов, которые можно получить
-    total_segments = (len(data) - segment_samples) // step_size + 1
+    num_channels = waveform.shape[0]
+    num_samples = waveform.shape[1]
+    duration_seconds = num_samples / sample_rate
 
-    logger.info(
-        f"Разделение файла на {total_segments} сегментов, длина: {segment_length} секунд, перекрытие: {overlap * 100:.0f}%")
+    # Логируем все характеристики
+    logger.info(f"Загружен файл: {file_path}")
+    logger.info(f"Частота дискретизации: {sample_rate} Гц")
+    logger.info(f"Количество каналов: {num_channels}")
+    logger.info(f"Количество сэмплов: {num_samples}")
+    logger.info(f"Продолжительность аудио: {duration_seconds:.2f} секунд")
 
-    # Перебираем и создаем сегменты
-    for i in range(total_segments):
-        start_sample = i * step_size
-        end_sample = start_sample + segment_samples
+    return waveform, sample_rate
 
-        # Извлекаем сегмент
-        segment = data[start_sample:end_sample]
 
-        # Генерируем имя выходного файла
-        output_filename = f"{os.path.splitext(os.path.basename(input_file))[0]}_segment_{i + 1}.wav"
-        output_path = os.path.join(output_folder, output_filename)
+def calculate_mel_fbanks(sample_rate, n_mels=64, f_min=0.0, f_max=None, n_fft=2048):
+    """
+    Рассчитывает мел-фильтры (Mel FBanks) один раз.
 
-        # Сохранение сегмента
-        sf.write(output_path, segment, sample_rate)
-        logger.info(f"Сегмент {i + 1} сохранен: {output_path}")
+    Аргументы:
+    sample_rate (int): Частота дискретизации.
+    n_mels (int): Количество фильтров Мела.
+    f_min (float): Минимальная частота.
+    f_max (float): Максимальная частота. Если None, будет равно половине частоты дискретизации.
+    n_fft (int): Размер окна FFT.
+
+    Возвращает:
+    Tensor: Мел-фильтры.
+    """
+    if f_max is None:
+        f_max = sample_rate / 2
+
+    mel_fbanks = F.melscale_fbanks(n_freqs=n_fft // 2 + 1, f_min=f_min, f_max=f_max, n_mels=n_mels,
+                                   sample_rate=sample_rate)
+    logger.info(f"Рассчитаны мел-фильтры. Форма: {mel_fbanks.shape}")
+    return mel_fbanks
+
+
+def segment_waveform(waveform, segment_length_samples, overlap_samples):
+    """
+    Разделяет аудиосигнал на сегменты с заданной длиной и перекрытием.
+
+    Аргументы:
+    waveform (Tensor): Аудиосигнал.
+    segment_length_samples (int): Длина сегмента в сэмплах.
+    overlap_samples (int): Количество сэмплов для перекрытия.
+
+    Возвращает:
+    List[Tensor]: Список сегментов аудиосигнала.
+    """
+    segments = []
+    step_size = segment_length_samples - overlap_samples
+    for start in range(0, waveform.shape[1] - segment_length_samples + 1, step_size):
+        segment = waveform[:, start:start + segment_length_samples]
+        segments.append(segment)
+
+    logger.info(f"Разделено на {len(segments)} сегментов.")
+    return segments
+
+
+def process_wav_to_mel_spectrogram(file_path, overlap=0.3, hop_length=512, n_fft=2048, n_mels=64):
+    """
+    Основная функция для обработки WAV-файла с сегментацией и конвертацией в мел-спектрограммы.
+
+    Аргументы:
+    file_path (str): Путь к WAV файлу.
+    overlap (float): Процент перекрытия сегментов.
+    hop_length (int): Шаг окна.
+    n_fft (int): Размер окна FFT.
+    n_mels (int): Количество фильтров Мела.
+
+    Возвращает:
+    List[Tensor]: Список мел-спектрограмм размером 64x64.
+    """
+    # Загрузить аудиофайл
+    waveform, sample_rate = load_wav_file(file_path)
+    if waveform is None:
+        return None
+
+    # Рассчитать длину сегмента в сэмплах для 64 фреймов
+    segment_length_samples = hop_length * (64 - 1) + n_fft
+    logger.info(f"Количество сэмплов в сегменте: {segment_length_samples}")
+
+    # Рассчитать перекрытие в сэмплах
+    overlap_samples = int(overlap * segment_length_samples)
+
+    # Разделение на сегменты
+    segments = segment_waveform(waveform, segment_length_samples, overlap_samples)
+
+    mel_spectrogram_list = []
+    mel_filter_banks = calculate_mel_fbanks(sample_rate, n_mels=n_mels, n_fft=n_fft)
+
+    for i, segment in enumerate(segments):
+        # Рассчитываем STFT для каждого сегмента
+        window = torch.hann_window(n_fft).to(segment.device)
+        stft = torch.stft(segment, n_fft=n_fft, hop_length=hop_length, window=window, return_complex=True)
+        magnitude = torch.abs(stft) ** 2
+
+        # Применение мел-фильтров к спектрограмме (создание мел-спектрограммы)
+        mel_spectrogram = torch.matmul(magnitude.permute(0, 2, 1), mel_filter_banks)
+
+        # Обрезаем или дополняем до 64x64
+        if mel_spectrogram.shape[1] >= 64:
+            logger.warning(f"Размер сегмента {i + 1} больше 64. {mel_spectrogram.shape[1]}")
+            mel_spectrogram = mel_spectrogram[:, :64, :]
+        else:
+            logger.warning(f"Размер сегмента {i + 1} меньше 64. {mel_spectrogram.shape[1]}")
+            padding = torch.zeros(
+                (mel_spectrogram.shape[0], 64 - mel_spectrogram.shape[1], mel_spectrogram.shape[2])).to(
+                mel_spectrogram.device)
+            mel_spectrogram = torch.cat((mel_spectrogram, padding), dim=1)
+
+        # Проверка на правильность формы
+        if mel_spectrogram.shape == (1, 64, 64):
+            mel_spectrogram_list.append(mel_spectrogram)
+            logger.info(f"Сегмент {i + 1} обработан. Форма мел-спектрограммы: {mel_spectrogram.shape}")
+        else:
+            logger.warning(f"Сегмент {i + 1} пропущен. Неправильная форма: {mel_spectrogram.shape}")
+
+    logger.info(f"Всего извлечено сегментов: {len(mel_spectrogram_list)}")
+    return mel_spectrogram_list
 
 
 # Пример использования:
 if __name__ == "__main__":
     input_file_path = "../data/normalized/example.wav"
-    output_folder_path = "../data/segments"
 
-    # Разделение на сегменты длиной 5 секунд с перекрытием 50%
-    segment_audio(input_file_path, output_folder_path, segment_length=5.0, overlap=0.5)
+    # Обработка WAV-файла с сегментацией и извлечение мел-спектрограмм
+    mel_spectrograms = process_wav_to_mel_spectrogram(input_file_path, hop_length=512, n_fft=2048)
+
+    # Проверка результата
+    if mel_spectrograms:
+        logger.info(f"Извлечено {len(mel_spectrograms)} мел-спектрограмм.")
+        logger.info(f"Размер первого сегмента: {mel_spectrograms[0].shape}")

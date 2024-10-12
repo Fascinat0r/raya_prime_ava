@@ -10,9 +10,10 @@ from app.utils.logger import get_logger  # Подключение логгера
 logger = get_logger("mfcc_extraction")
 
 
-def extract_mfcc(audio_file, output_file, n_mfcc=40, sr=16000, n_fft=400, hop_length=160, fixed_length=157):
+def extract_mfcc(audio_file, output_file, n_mfcc=20, sr=16000, n_fft=400, hop_length=160, fixed_length=157):
     """
-    Извлечение MFCC признаков из аудиофайла с использованием torchaudio и сохранение в виде .npy файла с гарантированной фиксированной длиной.
+    Извлечение MFCC признаков из аудиофайла с использованием torchaudio и сохранение
+    в виде .npy файла с гарантированной фиксированной длиной.
 
     :param audio_file: Путь к входному .wav файлу.
     :param output_file: Путь для сохранения выходного .npy файла.
@@ -64,6 +65,8 @@ def extract_mfcc(audio_file, output_file, n_mfcc=40, sr=16000, n_fft=400, hop_le
         # Если временная длина больше целевой, обрезаем
         mfcc_features = mfcc_features[:fixed_length, :]
         logger.info(f"Файл {audio_file} обрезан до {fixed_length} временных шагов.")
+    else:
+        logger.info(f"Файл {audio_file} уже имеет целевую длину в {fixed_length} временных шагов.")
 
     # Сохранение признаков в .npy файл
     np.save(output_file, mfcc_features)

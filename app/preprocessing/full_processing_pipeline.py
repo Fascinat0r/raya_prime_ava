@@ -202,7 +202,7 @@ def run_parallel_processing(max_processes=MAX_PROCESSES):
                 if file_metadata:
                     all_metadata.extend(file_metadata)
             except Exception as e:
-                logger.info(f"Ошибка при обработке файла {futures[future]}: {e}")
+                logger.error(f"Ошибка при обработке файла {futures[future]}: {e.with_traceback(None)}")
 
     metadata_df = pd.DataFrame(all_metadata)
     metadata_df.to_csv(METADATA_FILE, index=False)

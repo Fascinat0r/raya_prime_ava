@@ -118,7 +118,7 @@ def augment_file(input_file, output_file, augmentation_probs=None):
     if augmentation_probs is None:
         augmentation_probs = [0.15, 0.1, 0.2, 0.15, 0.1, 0.2, 0.1]
 
-    logger.info(f"Обработка файла: {input_file}")
+    logger.info(f"Аугментация файла: {input_file}")
 
     # Загрузка аудиофайла
     audio_data, sample_rate = librosa.load(input_file, sr=None)
@@ -153,17 +153,19 @@ def augment_file(input_file, output_file, augmentation_probs=None):
     )[0]
     selected_augmentation = augmentation_methods[selected_augmentation_idx]
 
-    logger.info(f"Выбрана аугментация: {augmentation_methods_names[selected_augmentation_idx]}")
+    logger.debug(f"Выбрана аугментация: {augmentation_methods_names[selected_augmentation_idx]}")
 
     # Применение выбранной аугментации
     augmented_data = selected_augmentation(audio_data)
 
     # Сохранение результата
     sf.write(output_file, augmented_data, sample_rate)
-    logger.info(f"Аугментированный файл сохранен: {output_file}")
+    logger.debug(f"Аугментированный файл сохранен: {output_file}")
 
 
 if __name__ == "__main__":
     # Пример использования
-    augment_file("../data/segments/0_0001.wav", "../data/segments/0_0001_augmented.wav")
-    augment_file("../data/segments/1_0001.wav", "../data/segments/1_0001_augmented.wav")
+    for i in range(5):
+        input_file = f"../data/segments/0_Lp._Идеальный_МИР_#30_НОВЫЙ_ПЕРСОНАЖ_•_Майнкрафт_segment_{i+1}.wav"
+        output_file = f"../data/augmented/example_{i}_augmented.wav"
+        augment_file(input_file, output_file)

@@ -92,7 +92,7 @@ def build_siamese_network(input_shape, distance_metric='euclidean'):
 
 if __name__ == "__main__":
     # Пример инициализации сети
-    input_shape = (40, 157, 1)  # Размер входного изображения (например, 20 MFCC коэффициентов на 200 временных окон)
+    input_shape = (20, 157, 1)  # Размер входного изображения (например, 20 MFCC коэффициентов на 200 временных окон)
 
     # Сиамская модель с евклидовым расстоянием
     siamese_model = build_siamese_network(input_shape, distance_metric='euclidean')
