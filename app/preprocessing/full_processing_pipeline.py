@@ -1,73 +1,56 @@
 import concurrent.futures
 import os
-import shutil
 import time
 
 import pandas as pd
+import torch
 from tqdm import tqdm
 
 from app.utils.logger import get_logger
-from augmentation import augment_file
-from convert_to_mfcc import extract_mfcc
-from denoise_audio import denoise_wav
-from filter_silent import remove_silence
-from normalize_audio import normalize_audio
-from segment_audio import segment_audio
+from denoise_audio import denoise_audio_data
+from filter_silent import remove_silence_from_data
+from normalize_audio import normalize_audio_data
+from process_wav_to_mel_spectrogram import process_audio_to_mel_spectrogram
+from utils import audiosegment_to_numpy, load_wav_file, tensor_to_audiosegment
 
 logger = get_logger("full_processing_pipeline")
 
 # Папки для обработки
 RAW_FOLDER = "../data/raw"
-NOSILENT_FOLDER = "../data/nosilent"
-NORMALIZED_FOLDER = "../data/normalized"
-DENOISED_FOLDER = "../data/denoised"
-SEGMENTS_FOLDER = "../data/segments"
-AUGMENTED_FOLDER = "../data/augmented"
-MFCC_FOLDER = "../data/mfcc"  # Общая папка для всех MFCC файлов
+SPECTROGRAMS_FOLDER = "../data/spectrograms"
 METADATA_FILE = "../data/metadata.csv"
 
 # Ограничение ресурсов
 MAX_PROCESSES = 4  # Максимальное количество одновременно выполняемых процессов
-MAX_MEMORY_USAGE_MB = 4096  # Максимальное количество оперативной памяти в МБ (например, 4 ГБ)
+MAX_MEMORY_USAGE_MB = 4096  # Максимальное количество оперативной памяти в МБ
 
-# Глобальный счетчик ID для MFCC файлов
-global_mfcc_id = None
+# Глобальный счетчик ID для мел-спектрограмм
+global_spectrogram_id = 0
 
 
-def initialize_global_mfcc_id(metadata_file):
+def initialize_global_spectrogram_id(metadata_file):
     """Инициализирует глобальный счетчик ID на основе существующих метаданных или с нуля."""
-    global global_mfcc_id
+    global global_spectrogram_id
 
-    # Если метаданные уже существуют, инициализировать счетчик на основе существующих данных
     if os.path.exists(metadata_file):
         try:
             metadata = pd.read_csv(metadata_file)
-            existing_ids = metadata['mfcc_filename'].str.extract(r'_(\d+)\.npy')[0].dropna().astype(int)
+            existing_ids = metadata['spectrogram_filename'].str.extract(r'_(\d+)\.npy')[0].dropna().astype(int)
             if not existing_ids.empty:
-                global_mfcc_id = existing_ids.max() + 1
+                global_spectrogram_id = existing_ids.max() + 1
             else:
-                global_mfcc_id = 1
+                global_spectrogram_id = 1
         except KeyError:
-            # Если столбца с именами MFCC еще нет, начать с 1
-            global_mfcc_id = 1
+            global_spectrogram_id = 1
     else:
-        global_mfcc_id = 1
+        global_spectrogram_id = 1
 
 
-def clear_folders(folders):
-    """Удаляет все файлы и папки внутри указанных директорий."""
-    for folder in folders:
-        if os.path.exists(folder):
-            shutil.rmtree(folder)  # Удаляет всю папку и её содержимое
-            os.makedirs(folder)  # Создает пустую папку заново
-            logger.info(f"Папка {folder} очищена.")
-
-
-def get_next_mfcc_id():
-    """Возвращает следующий уникальный ID для MFCC файла и увеличивает глобальный счетчик."""
-    global global_mfcc_id
-    current_id = global_mfcc_id
-    global_mfcc_id += 1
+def get_next_spectrogram_id():
+    """Возвращает следующий уникальный ID для мел-спектрограммы и увеличивает глобальный счетчик."""
+    global global_spectrogram_id
+    current_id = global_spectrogram_id
+    global_spectrogram_id += 1
     return current_id
 
 
@@ -78,118 +61,62 @@ def process_file(filename: str):
     # Путь к исходному файлу
     raw_file_path = os.path.join(RAW_FOLDER, filename)
 
-    # 1. Удаление тишины
-    nosilent_file_path = os.path.join(NOSILENT_FOLDER, filename)
-    remove_silence(raw_file_path, nosilent_file_path, silence_thresh=-40, min_silence_len=500)
+    # 1. Загрузка аудио и преобразование в AudioSegment
+    audio_segment, sample_rate = load_wav_file(raw_file_path)
+    audio_segment = tensor_to_audiosegment(audio_segment, sample_rate)
 
-    # 2. Нормализация
-    normalized_file_path = os.path.join(NORMALIZED_FOLDER, filename)
-    normalize_audio(nosilent_file_path, normalized_file_path, target_dBFS=-20.0)
+    # 2. Удаление тишины
+    logger.info("Удаление тишины...")
+    nosilent_audio = remove_silence_from_data(audio_segment, silence_thresh=-40, min_silence_len=50)
 
-    # 3. Шумоподавление
-    denoised_file_path = os.path.join(DENOISED_FOLDER, filename)
-    denoise_wav(normalized_file_path, denoised_file_path, chunk_size=50000, prop_decrease=0.7, stationary=False,
-                n_std_thresh_stationary=1.2)
+    # 3. Нормализация
+    logger.info("Нормализация громкости...")
+    normalized_audio = normalize_audio_data(nosilent_audio, target_dBFS=-20.0)
 
-    # 4. Сегментация
-    segment_length = 5.0  # Длина сегмента в секундах
-    overlap = 0.5  # Степень перекрытия
-    segment_audio(denoised_file_path, SEGMENTS_FOLDER, segment_length=segment_length, overlap=overlap)
+    # 4. Преобразование в np.array для шумоподавления
+    logger.info("Шумоподавление...")
+    normalized_numpy = audiosegment_to_numpy(normalized_audio)
+    denoised_numpy = denoise_audio_data(normalized_numpy, normalized_audio.frame_rate, chunk_size=50000,
+                                        prop_decrease=0.7, stationary=False, n_std_thresh_stationary=1.2)
 
-    # 5. Запись метаданных для каждого сегмента
-    segment_files = [f for f in os.listdir(SEGMENTS_FOLDER) if f.startswith(os.path.splitext(filename)[0])]
-    for segment_file in segment_files:
+    # 5. Преобразование в Tensor для мел-спектрограмм
+    denoised_tensor = torch.tensor(denoised_numpy).unsqueeze(0)  # Добавляем размерность канала
+
+    # 6. Извлечение мел-спектрограмм с сегментацией
+    mel_spectrograms = process_audio_to_mel_spectrogram(denoised_tensor, normalized_audio.frame_rate,
+                                                        expected_shape=(64, 64), hop_length=512, n_fft=2048)
+
+    # 7. Запись метаданных для каждой мел-спектрограммы
+    for i, mel_spectrogram in enumerate(mel_spectrograms):
+        spectrogram_id = get_next_spectrogram_id()
+        spectrogram_filename = f"spectrogram_{spectrogram_id}.npy"
+        spectrogram_path = os.path.join(SPECTROGRAMS_FOLDER, spectrogram_filename)
+
+        # Сохранение мел-спектрограммы
+        os.makedirs(SPECTROGRAMS_FOLDER, exist_ok=True)
+        with open(spectrogram_path, 'wb') as f:
+            torch.save(mel_spectrogram, f)
+
+        # Запись метаданных
         segment_metadata = {
             "original_filename": filename,
-            "segment_filename": segment_file,
-            "segment_length_sec": segment_length,
-            "overlap": overlap,
-            "segment_path": os.path.join(SEGMENTS_FOLDER, segment_file),
-            "source_type": "o"  # Обозначение для оригинальных сегментов
+            "spectrogram_filename": spectrogram_filename,
+            "segment_length_sec": 5.0,
+            "overlap": 0.5,
+            "spectrogram_path": spectrogram_path,
+            "source_type": "o"
         }
         file_metadata.append(segment_metadata)
 
     return file_metadata
 
 
-def augment_and_extract_mfcc(metadata_file=METADATA_FILE):
-    """Выполняет аугментацию и преобразование сегментов в MFCC признаки."""
-    metadata = pd.read_csv(metadata_file)
-
-    augmented_metadata = []
-
-    # 1. Аугментация сегментов
-    for _, row in metadata.iterrows():
-        segment_path = row['segment_path']
-        augmented_filename = f"aug_{os.path.basename(segment_path)}"
-        augmented_path = os.path.join(AUGMENTED_FOLDER, augmented_filename)
-
-        # Применение аугментации
-        augment_file(segment_path, augmented_path)
-
-        # Добавление информации о новом сегменте
-        augmented_metadata.append({
-            "original_filename": row['original_filename'],
-            "segment_filename": augmented_filename,
-            "segment_length_sec": row['segment_length_sec'],
-            "overlap": row['overlap'],
-            "segment_path": augmented_path,
-            "source_type": "a"  # Обозначение для аугментированных сегментов
-        })
-
-    # Обновление метаданных с аугментированными файлами
-    augmented_df = pd.DataFrame(augmented_metadata)
-    combined_metadata = pd.concat([metadata, augmented_df], ignore_index=True)
-
-    # 2. Преобразование в MFCC сегментов и аугментированных файлов
-    mfcc_metadata = []
-
-    for _, row in combined_metadata.iterrows():
-        segment_path = row['segment_path']
-
-        # Определяем целевой ли это голос по оригинальному имени файла (начинается с "1" или "0")
-        target_label = "1" if row['original_filename'].startswith("1") else "0"
-
-        # Определяем тип сегмента (оригинальный или аугментированный)
-        segment_type = row['source_type']  # "o" — original, "a" — augmented
-
-        # Получаем следующий уникальный ID для MFCC файла
-        mfcc_id = get_next_mfcc_id()
-        mfcc_filename = f"{target_label}_{segment_type}_{mfcc_id}.npy"
-        mfcc_output_path = os.path.join(MFCC_FOLDER, mfcc_filename)
-
-        # Убедиться, что папка существует
-        os.makedirs(MFCC_FOLDER, exist_ok=True)
-
-        # Извлечение MFCC
-        extract_mfcc(segment_path, mfcc_output_path)
-
-        # Обновление метаданных
-        row['mfcc_path'] = mfcc_output_path
-        row['mfcc_filename'] = mfcc_filename
-        mfcc_metadata.append(row)
-
-    # Сохранение обновленных метаданных
-    mfcc_metadata_df = pd.DataFrame(mfcc_metadata)
-    mfcc_metadata_df.to_csv(metadata_file, index=False)
-    logger.info(f"Метаданные с MFCC признаками сохранены в {metadata_file}.")
-
-
 def run_parallel_processing(max_processes=MAX_PROCESSES):
     """Запускает параллельную обработку всех файлов из папки data/raw с ограничением числа процессов."""
-    for folder in [NOSILENT_FOLDER, NORMALIZED_FOLDER, DENOISED_FOLDER, SEGMENTS_FOLDER, AUGMENTED_FOLDER, MFCC_FOLDER]:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+    if not os.path.exists(SPECTROGRAMS_FOLDER):
+        os.makedirs(SPECTROGRAMS_FOLDER)
 
-    folders_to_clear = [
-        NOSILENT_FOLDER, NORMALIZED_FOLDER, DENOISED_FOLDER, SEGMENTS_FOLDER, AUGMENTED_FOLDER, MFCC_FOLDER
-    ]
-
-    # Очистка всех целевых папок перед началом
-    clear_folders(folders_to_clear)
-
-    # Инициализация глобального ID для MFCC
-    initialize_global_mfcc_id(METADATA_FILE)
+    initialize_global_spectrogram_id(METADATA_FILE)
 
     raw_files = [f for f in os.listdir(RAW_FOLDER) if f.endswith(".wav")]
 
@@ -197,19 +124,13 @@ def run_parallel_processing(max_processes=MAX_PROCESSES):
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_processes) as executor:
         futures = {executor.submit(process_file, file): file for file in raw_files}
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Обработка файлов"):
-            try:
-                file_metadata = future.result()
-                if file_metadata:
-                    all_metadata.extend(file_metadata)
-            except Exception as e:
-                logger.error(f"Ошибка при обработке файла {futures[future]}: {e.with_traceback(None)}")
+            file_metadata = future.result()
+            if file_metadata:
+                all_metadata.extend(file_metadata)
 
     metadata_df = pd.DataFrame(all_metadata)
     metadata_df.to_csv(METADATA_FILE, index=False)
     logger.info(f"Метаданные сохранены в {METADATA_FILE}")
-
-    # Аугментация и преобразование в MFCC
-    augment_and_extract_mfcc()
 
 
 if __name__ == "__main__":
