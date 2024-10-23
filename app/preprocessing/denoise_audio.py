@@ -1,71 +1,56 @@
-import logging
-
 import noisereduce as nr
 import numpy as np
 
-logger = logging.getLogger("denoise_audio")
+from app.utils.logger import get_logger
+
+logger = get_logger("denoise_audio")
 
 
-def denoise_audio_data(audio_data: np.ndarray, sample_rate: int, chunk_size: int = 50000, prop_decrease: float = 0.8,
-                       stationary: bool = False, n_std_thresh_stationary: float = 1.0) -> np.ndarray:
+def denoise_audio_data(audio_data, sample_rate, chunk_size=50000, prop_decrease=0.8,
+                       stationary=False, n_std_thresh_stationary=1.0, freq_mask_smooth_hz=700) -> np.ndarray:
     """
-    Удаляет шум из аудиоданных, обрабатывая их сегментами и преобразуя многоканальные данные в моно.
+    Удаляет шум из аудиоданных, обрабатывая их сегментами и преобразуя многоканальные файлы в моно.
 
     Аргументы:
-    audio_data (np.ndarray): Аудиоданные в виде массива numpy.
+    audio_data (numpy.ndarray): Аудиоданные.
     sample_rate (int): Частота дискретизации.
     chunk_size (int): Размер сегмента для обработки (по умолчанию 50000 выборок).
     prop_decrease (float): Уровень подавления шума (по умолчанию 0.8, максимальное значение 1.0).
     stationary (bool): Использовать ли стационарный шумоподавитель (False для спектрального подавления).
     n_std_thresh_stationary (float): Порог стандартного отклонения для определения шума.
-
-    Возвращает:
-    np.ndarray: Очищенные аудиоданные.
+    freq_mask_smooth_hz (float): Частота сглаживания частотной маски.
     """
     logger.info("Запуск шумоподавления аудиоданных...")
 
-    # Проверка количества каналов и преобразование в моно
+    # Проверка количества каналов
     if len(audio_data.shape) > 1:
-        logger.info("Аудиоданные многоканальные, преобразование в моно.")
-        audio_data = convert_to_mono(audio_data)
+        logger.error("Многоканальные аудиоданныe")
+        raise ValueError("Многоканальные аудиоданныe не поддерживаются. Преобразуйте их в моно.")
 
     # Применение шумоподавления сегментами
     logger.info("Обработка аудиоданных и удаление шума...")
-    reduced_noise = reduce_noise_segmented(audio_data, sample_rate, chunk_size, prop_decrease, stationary,
-                                           n_std_thresh_stationary)
+    reduced_noise = reduce_noise_segmented(audio_data, sample_rate, chunk_size, prop_decrease,
+                                           stationary, n_std_thresh_stationary, freq_mask_smooth_hz)
 
-    logger.info("Шумоподавление завершено.")
     return reduced_noise
 
 
-def convert_to_mono(audio_data: np.ndarray) -> np.ndarray:
-    """
-    Преобразует многоканальное аудио в моно путем усреднения всех каналов.
-
-    Аргументы:
-    audio_data (np.ndarray): Массив numpy с аудиоданными (несколько каналов).
-
-    Возвращает:
-    np.ndarray: Монофоническое аудио.
-    """
-    return np.mean(audio_data, axis=1)
-
-
-def reduce_noise_segmented(audio_data: np.ndarray, sample_rate: int, chunk_size: int, prop_decrease: float,
-                           stationary: bool, n_std_thresh_stationary: float) -> np.ndarray:
+def reduce_noise_segmented(audio_data, sample_rate, chunk_size, prop_decrease, stationary, n_std_thresh_stationary,
+                           freq_mask_smooth_hz):
     """
     Удаляет шум из аудио, обрабатывая его сегментами с настройками подавления.
 
     Аргументы:
-    audio_data (np.ndarray): Аудиоданные в виде массива numpy.
+    audio_data: Аудиоданные в виде массива numpy.
     sample_rate: Частота дискретизации.
     chunk_size: Размер сегмента для обработки.
     prop_decrease: Уровень подавления шума.
     stationary: Использовать ли стационарное шумоподавление.
     n_std_thresh_stationary: Порог стандартного отклонения для определения шума.
+    freq_mask_smooth_hz (float): Частота сглаживания частотной маски.
 
     Возвращает:
-    np.ndarray: Очищенные аудиоданные.
+    Очищенные аудиоданные.
     """
     num_chunks = len(audio_data) // chunk_size + 1
     denoised_audio = []
@@ -77,16 +62,14 @@ def reduce_noise_segmented(audio_data: np.ndarray, sample_rate: int, chunk_size:
         # Извлечение сегмента
         chunk = audio_data[start_idx:end_idx]
 
-        # Проверка длины сегмента и динамическое изменение nperseg, если сегмент слишком короткий
-        nperseg = min(1024, len(chunk))
-
         # Применение шумоподавления на сегменте
         reduced_chunk = nr.reduce_noise(
-            y=chunk, sr=sample_rate,
+            y=chunk,
+            sr=sample_rate,
             prop_decrease=prop_decrease,
             stationary=stationary,
             n_std_thresh_stationary=n_std_thresh_stationary,
-            n_fft=nperseg  # Динамическое изменение размера окна для STFT
+            freq_mask_smooth_hz=freq_mask_smooth_hz
         )
 
         # Добавление очищенного сегмента в общий список

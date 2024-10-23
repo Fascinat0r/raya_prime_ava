@@ -21,7 +21,7 @@ SPECTROGRAMS_FOLDER = "../data/spectrograms"
 METADATA_FILE = "../data/metadata.csv"
 
 # Ограничение ресурсов
-MAX_PROCESSES = 4  # Максимальное количество одновременно выполняемых процессов
+MAX_PROCESSES = 2  # Максимальное количество одновременно выполняемых процессов
 MAX_MEMORY_USAGE_MB = 4096  # Максимальное количество оперативной памяти в МБ
 
 # Глобальный счетчик ID для мел-спектрограмм
@@ -57,7 +57,11 @@ def get_next_spectrogram_id():
 def process_file(filename: str):
     """Обрабатывает файл последовательно через все этапы и записывает метаданные для каждого сегмента."""
     file_metadata = []
-
+    # Записываем, целевой ли это голос или нет. У целевых в файле название начинается с 1, у остальных с 0
+    value = filename[0]
+    if value not in ['0', '1']:
+        logger.error(f"Некорректное значение целевого признака в названии файла: {filename}")
+        return None
     # Путь к исходному файлу
     raw_file_path = os.path.join(RAW_FOLDER, filename)
 
@@ -84,7 +88,7 @@ def process_file(filename: str):
 
     # 6. Извлечение мел-спектрограмм с сегментацией
     mel_spectrograms = process_audio_to_mel_spectrogram(denoised_tensor, normalized_audio.frame_rate,
-                                                        expected_shape=(64, 64), hop_length=512, n_fft=2048)
+                                                        expected_shape=(64, 64), hop_length=512, n_fft=1024)
 
     # 7. Запись метаданных для каждой мел-спектрограммы
     for i, mel_spectrogram in enumerate(mel_spectrograms):
@@ -99,10 +103,9 @@ def process_file(filename: str):
 
         # Запись метаданных
         segment_metadata = {
+            "value": value,
             "original_filename": filename,
             "spectrogram_filename": spectrogram_filename,
-            "segment_length_sec": 5.0,
-            "overlap": 0.5,
             "spectrogram_path": spectrogram_path,
             "source_type": "o"
         }

@@ -6,7 +6,7 @@ import torchaudio.functional as F
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("mel_fbank_conversion")
+logger = logging.getLogger("mel_spec_conversion")
 
 
 def process_audio_to_mel_spectrogram(audio_data: torch.Tensor,

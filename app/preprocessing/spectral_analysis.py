@@ -1,56 +1,54 @@
-import librosa
-import librosa.display
-import matplotlib.pyplot as plt
 import numpy as np
-import soundfile as sf
+import matplotlib.pyplot as plt
+import torch
 
 
-def plot_spectral_analysis(file_paths: list, output_image: str = None):
+def plot_mel_spectrogram(mel_spectrogram, title="Mel Spectrogram", xlabel="Time (frames)", ylabel="Mel Bands"):
     """
-    Выполняет спектральный анализ нескольких аудиофайлов и строит их спектрограммы на одном графике с легендой.
+    Визуализирует мел-спектрограмму.
 
     Аргументы:
-    file_paths (list): Список путей к входным аудиофайлам (.wav).
-    output_image (str): Путь для сохранения спектрограммы в виде изображения (по умолчанию None).
+    mel_spectrogram (Tensor или np.array): Массив или тензор мел-спектрограммы размером (1, 64, 64).
+    title (str): Заголовок графика.
+    xlabel (str): Метка для оси X.
+    ylabel (str): Метка для оси Y.
     """
+    if isinstance(mel_spectrogram, torch.Tensor):
+        mel_spectrogram = mel_spectrogram.cpu().numpy()
 
-    plt.figure(figsize=(14, 8))  # Размер итогового графика
+    # Выведем предупреждение, если размерность не соответствует ожидаемой
+    if mel_spectrogram.shape != (64, 64):
+        print(f"Размер мел-спектрограммы не соответствует ожидаемому: {mel_spectrogram.shape}")
 
-    # Обработка каждого файла из списка
-    for file_path in file_paths:
-        # Загружаем аудиофайл
-        audio_data, sample_rate = sf.read(file_path)
+    # Если тензор имеет форму (1, 64, 64), убираем ось с единичной размерностью
+    if mel_spectrogram.shape[0] == 1:
+        mel_spectrogram = mel_spectrogram.squeeze(0)
 
-        # Преобразование в моно, если многоканальное аудио
-        if len(audio_data.shape) > 1:
-            audio_data = np.mean(audio_data, axis=1)
-
-        # Преобразование сигнала в мел-спектрограмму
-        S = librosa.feature.melspectrogram(y=audio_data, sr=sample_rate, n_mels=128, fmax=8000)
-
-        # Логарифмическое масштабирование амплитуды
-        S_db = librosa.power_to_db(S, ref=np.max)
-
-        # Вычисление среднего значения спектра по временной оси
-        mean_spectrum = np.mean(S_db, axis=1)
-
-        # Построение среднего спектра для каждого файла с легендой
-        plt.plot(mean_spectrum, label=f"{file_path}")
-
-    # Оформление графика
-    plt.xlabel("Частота (Мел-шкала)")
-    plt.ylabel("Амплитуда (дБ)")
-    plt.title("Средний спектр нескольких аудиофайлов")
-    plt.legend(loc='upper right')  # Добавление легенды в правый верхний угол
-    plt.grid(True)
-
-    # Сохранение изображения, если задано
-    if output_image:
-        plt.savefig(output_image)
-    else:
-        plt.show()
+    plt.figure(figsize=(10, 6))
+    plt.imshow(mel_spectrogram, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(format="%+2.0f dB")
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.tight_layout()
+    plt.show()
 
 
+def load_and_visualize_spectrogram(npy_file):
+    """
+    Загружает мел-спектрограмму из .npy файла и визуализирует её.
+ыц
+    Аргументы:
+    npy_file (str): Путь к .npy файлу с сохранённой мел-спектрограммой.
+    """
+    mel_spectrogram = torch.load(npy_file)  # Загрузка тензора с мел-спектрограммой
+    plot_mel_spectrogram(mel_spectrogram, title=f"Mel Spectrogram from {npy_file}")
+
+
+# Пример использования:
 if __name__ == "__main__":
-    input_files = ["data/normalized/example.wav", "data/denoised/example.wav"]
-    plot_spectral_analysis(input_files)
+    # Путь к .npy файлу
+    npy_file_path = "../data/spectrograms\spectrogram_2789.npy"
+
+    # Визуализация мел-спектрограммы
+    load_and_visualize_spectrogram(npy_file_path)

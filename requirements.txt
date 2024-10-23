@@ -71,3 +71,4 @@ seaborn~=0.13.2
 torch~=2.4.1
 pandas~=2.2.3
 torchaudio~=2.4.1
+torchvision~=0.19.1
