@@ -6,19 +6,19 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from app.utils.logger import get_logger
+from logger import get_logger
 from denoise_audio import denoise_audio_data
 from filter_silent import remove_silence_from_data
 from normalize_audio import normalize_audio_data
 from process_wav_to_mel_spectrogram import process_audio_to_mel_spectrogram
-from utils import audiosegment_to_numpy, load_wav_file, tensor_to_audiosegment
+from convert import audiosegment_to_numpy, load_wav_file, tensor_to_audiosegment
+from root import PROJECT_ROOT
 
 logger = get_logger("full_processing_pipeline")
-
 # Папки для обработки
-RAW_FOLDER = "../data/raw"
-SPECTROGRAMS_FOLDER = "../data/spectrograms"
-METADATA_FILE = "../data/metadata.csv"
+RAW_FOLDER = os.path.join(PROJECT_ROOT, "data", "raw")
+SPECTROGRAMS_FOLDER = os.path.join(PROJECT_ROOT, "data", "spectrograms")
+METADATA_FILE = os.path.join(PROJECT_ROOT, "data", "metadata.csv")
 
 # Ограничение ресурсов
 MAX_PROCESSES = 2  # Максимальное количество одновременно выполняемых процессов
@@ -93,7 +93,7 @@ def process_file(filename: str):
     # 7. Запись метаданных для каждой мел-спектрограммы
     for i, mel_spectrogram in enumerate(mel_spectrograms):
         spectrogram_id = get_next_spectrogram_id()
-        spectrogram_filename = f"spectrogram_{spectrogram_id}.npy"
+        spectrogram_filename = f"spectrogram_{spectrogram_id}.pt"
         spectrogram_path = os.path.join(SPECTROGRAMS_FOLDER, spectrogram_filename)
 
         # Сохранение мел-спектрограммы
@@ -106,7 +106,7 @@ def process_file(filename: str):
             "value": value,
             "original_filename": filename,
             "spectrogram_filename": spectrogram_filename,
-            "spectrogram_path": spectrogram_path,
+            "spectrogram_path": os.path.abspath(spectrogram_path),
             "source_type": "o"
         }
         file_metadata.append(segment_metadata)

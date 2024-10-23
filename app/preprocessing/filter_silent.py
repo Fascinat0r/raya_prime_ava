@@ -1,6 +1,6 @@
 from pydub import AudioSegment, silence
 
-from app.utils.logger import get_logger
+from logger import get_logger
 
 logger = get_logger("filter_silent")
 

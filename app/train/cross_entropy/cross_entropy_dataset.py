@@ -1,10 +1,8 @@
-import argparse
 import logging
-import os
+
 import pandas as pd
-import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 # Настраиваем логирование
 logger = logging.getLogger(__name__)
@@ -46,16 +44,21 @@ class MelSpecCrossEntropyDataset(Dataset):
     @staticmethod
     def _npy_loader(path):
         """
-        Вспомогательная функция для загрузки .npy файла и его преобразования в тензор PyTorch.
+        Вспомогательная функция для загрузки .npy или .npz файла и его преобразования в тензор PyTorch.
         """
-        sample = np.load(path)
-        assert sample.shape[0] == 64 and sample.shape[1] == 64 and sample.shape[2] == 1, "Неправильная форма данных!"
-        logger.debug(f"Загрузка файла: {path}, Размер: {sample.shape}")
+        try:
+            sample = torch.load(path)
 
-        # Преобразуем оси для соответствия ожиданиям PyTorch (канал на первой оси)
-        sample = np.moveaxis(sample, 2, 0)
-        sample = torch.from_numpy(sample).float()
-        return sample
+            # Проверка формы данных
+            assert sample.shape[0] == 1 and sample.shape[1] == 64 and sample.shape[
+                2] == 64, "Неправильная форма данных!"
+            logger.debug(f"Загрузка файла: {path}, Размер: {sample.shape}")
+            return sample
+
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке {path}: {e}")
+            raise
+
 
     def __getitem__(self, index):
         """
@@ -75,4 +78,3 @@ class MelSpecCrossEntropyDataset(Dataset):
         Возвращаем общую длину датасета.
         """
         return self.len_
-

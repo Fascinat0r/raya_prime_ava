@@ -34,21 +34,21 @@ def plot_mel_spectrogram(mel_spectrogram, title="Mel Spectrogram", xlabel="Time 
     plt.show()
 
 
-def load_and_visualize_spectrogram(npy_file):
+def load_and_visualize_spectrogram(pt_file):
     """
-    Загружает мел-спектрограмму из .npy файла и визуализирует её.
-ыц
+    Загружает мел-спектрограмму из .pt файла и визуализирует её.
+
     Аргументы:
-    npy_file (str): Путь к .npy файлу с сохранённой мел-спектрограммой.
+    pt_file (str): Путь к .pt файлу с сохранённой мел-спектрограммой.
     """
-    mel_spectrogram = torch.load(npy_file)  # Загрузка тензора с мел-спектрограммой
-    plot_mel_spectrogram(mel_spectrogram, title=f"Mel Spectrogram from {npy_file}")
+    mel_spectrogram = torch.load(pt_file)  # Загрузка тензора с мел-спектрограммой
+    plot_mel_spectrogram(mel_spectrogram, title=f"Mel Spectrogram from {pt_file}")
 
 
 # Пример использования:
 if __name__ == "__main__":
-    # Путь к .npy файлу
-    npy_file_path = "../data/spectrograms\spectrogram_2789.npy"
+    # Путь к .pt файлу
+    pt_file_path = "../data/spectrograms/spectrogram_2789.pt"
 
     # Визуализация мел-спектрограммы
-    load_and_visualize_spectrogram(npy_file_path)
+    load_and_visualize_spectrogram(pt_file_path)

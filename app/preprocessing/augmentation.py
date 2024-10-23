@@ -5,7 +5,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-from app.utils.logger import get_logger
+from logger import get_logger
 
 logger = get_logger("augmentation")
 
@@ -97,7 +97,7 @@ def add_noise(audio_data, sample_rate, noise_type='white', noise_factor_range=(0
     return audio_data + scaled_noise
 
 
-def high_pass_filter(audio_data, cutoff_range=(200, 1000), sample_rate=16000):
+def high_pass_filter(audio_data, cutoff_range=(200, 1000), sample_rate=44100):
     """
     Применение высокочастотного фильтра.
     :param audio_data: Аудиоданные в виде массива numpy.

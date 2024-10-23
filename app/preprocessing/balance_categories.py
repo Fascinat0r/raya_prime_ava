@@ -3,7 +3,7 @@ import random
 
 import pandas as pd
 
-from app.utils.logger import get_logger
+from logger import get_logger
 from augmentation import augment_file
 
 # Пути к файлам и папкам
