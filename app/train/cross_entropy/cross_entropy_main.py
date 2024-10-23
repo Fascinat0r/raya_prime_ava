@@ -106,22 +106,36 @@ def main():
     Загружает данные, восстанавливает модель, выполняет обучение и сохраняет результаты.
     """
     model_path = 'saved_models_cross_entropy/'  # Путь для сохранения модели
-    use_cuda = False  # Использование GPU, если доступен
-    device = torch.device("cuda" if use_cuda else "cpu")
+    use_cuda = None
+
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
+        use_cuda = True
+        logger.info("CUDA доступен. Обучение будет производиться на GPU.")
+    else:
+        use_cuda = False
+        logger.info("CUDA не доступен. Обучение будет производиться на CPU.")
+
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+
+    if use_cuda:
+        torch.cuda.empty_cache()
+        torch.cuda.set_per_process_memory_fraction(0.8, device=device)
+
     logger.info(f'Используемое устройство: {device}')
 
     import multiprocessing
     logger.info(f'Количество ядер процессора: {multiprocessing.cpu_count()}')
 
-    kwargs = {'num_workers': multiprocessing.cpu_count(),
-              'pin_memory': True} if use_cuda else {}
+    # Отключаем pin_memory и уменьшаем num_workers
+    kwargs = {'num_workers': 2, 'pin_memory': False} if use_cuda else {}
 
     # Загрузка тренировочного и тестового датасета с фильтробанками
     train_dataset = MelSpecCrossEntropyDataset('../train_metadata.csv')
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, **kwargs)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, **kwargs)
 
     test_dataset = MelSpecCrossEntropyDataset('../test_metadata.csv')
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True, **kwargs)
+    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=True, **kwargs)
 
     # Загрузка модели
     model = MelSpecCrossEntropyNet(reduction='mean').to(device)
