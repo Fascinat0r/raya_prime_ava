@@ -1,5 +1,6 @@
 import logging
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -9,13 +10,17 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-class MelSpecCrossEntropyDataset(Dataset):
+class MelSpecTripletDataset(Dataset):
     """
-    Класс для загрузки фильтробанок из файлов .npy для обучения модели с функцией потерь Cross Entropy.
-    Использует файл метаданных для управления загрузкой данных.
+    Класс для загрузки данных для обучения с использованием триплетной потери (Triplet Loss).
+    Данные загружаются из файлов формата .pt на основе метаданных, хранящихся в CSV.
     """
 
     def __init__(self, metadata_file):
+        """
+        Инициализация датасета.
+        :param metadata_file: Путь к файлу метаданных (CSV), содержащему информацию о спектрограммах и их классах.
+        """
         logger.info(f"Загрузка метаданных из файла: {metadata_file}")
         # Загружаем метаданные из CSV
         self.metadata = pd.read_csv(metadata_file)
@@ -44,7 +49,7 @@ class MelSpecCrossEntropyDataset(Dataset):
     @staticmethod
     def _pt_loader(path):
         """
-        Вспомогательная функция для загрузки .pt файлов.
+        Вспомогательная функция для загрузки .pt файла и его преобразования в тензор PyTorch.
         """
         try:
             sample = torch.load(path)
@@ -59,19 +64,34 @@ class MelSpecCrossEntropyDataset(Dataset):
             logger.error(f"Ошибка при загрузке {path}: {e}")
             raise
 
-
     def __getitem__(self, index):
         """
-        Возвращаем данные и метку по индексу.
+        Возвращает триплет: якорь, положительный и отрицательный примеры.
+        :param index: Индекс якорного примера.
+        :return: (anchor, positive, negative).
         """
-        # Получаем путь к файлу и метку из метаданных
+        # Получаем якорную спектрограмму
         row = self.metadata.iloc[index]
-        spectrogram_path = row['spectrogram_path']
-        label = row['value']
+        anchor_path = row['spectrogram_path']
+        anchor_label = row['value']
+        anchor_x = self._pt_loader(anchor_path)
 
-        # Загружаем спектрограмму
-        data = self._pt_loader(spectrogram_path)
-        return data, label
+        # Положительный пример
+        start, end = self.label_to_index_range[anchor_label]
+        i = np.random.randint(low=start, high=end)
+        positive_row = self.metadata.iloc[i]
+        positive_x = self._pt_loader(positive_row['spectrogram_path'])
+
+        # Отрицательный пример
+        other_classes = list(range(self.num_classes))
+        other_classes.remove(anchor_label)
+        negative_label = np.random.choice(other_classes)
+        start, end = self.label_to_index_range[negative_label]
+        i = np.random.randint(low=start, high=end)
+        negative_row = self.metadata.iloc[i]
+        negative_x = self._pt_loader(negative_row['spectrogram_path'])
+
+        return (anchor_x, anchor_label), (positive_x, anchor_label), (negative_x, negative_label)
 
     def __len__(self):
         """
