@@ -17,7 +17,7 @@ def plot_mel_spectrogram(mel_spectrogram, title="Mel Spectrogram", xlabel="Time 
         mel_spectrogram = mel_spectrogram.cpu().numpy()
 
     # Выведем предупреждение, если размерность не соответствует ожидаемой
-    if mel_spectrogram.shape != (64, 64):
+    if mel_spectrogram.shape != (128, 128):
         print(f"Размер мел-спектрограммы не соответствует ожидаемому: {mel_spectrogram.shape}")
 
     # Если тензор имеет форму (1, 64, 64), убираем ось с единичной размерностью
@@ -48,7 +48,9 @@ def load_and_visualize_spectrogram(pt_file):
 # Пример использования:
 if __name__ == "__main__":
     # Путь к .pt файлу
-    pt_file_path = "../data/spectrograms/spectrogram_2789.pt"
+    pt_file_path = "../data/spectrograms/spectrogram_1000.pt"
 
     # Визуализация мел-спектрограммы
-    load_and_visualize_spectrogram(pt_file_path)
+    for i in range(5):
+        path = pt_file_path.replace("1000", str(1000 + i))
+        load_and_visualize_spectrogram(path)

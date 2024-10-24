@@ -29,6 +29,7 @@ def _get_cosine_distance(a, b):
 
 accumulation_steps = 4  # количество шагов для накопления градиентов
 
+
 def train(model, device, train_loader, optimizer, epoch, log_interval):
     """
     Функция для обучения модели за одну эпоху.
@@ -153,7 +154,7 @@ def main():
     """
     Основная функция для настройки и запуска обучения и тестирования модели.
     """
-    model_path = 'siamese_melspec_saved/'
+    model_path = '../weights/'
     # use_cuda = torch.cuda.is_available()
     use_cuda = False
     device = torch.device("cuda:0" if use_cuda else "cpu")
@@ -168,7 +169,7 @@ def main():
     import multiprocessing
     logger.info(f'Количество ядер процессора: {multiprocessing.cpu_count()}')
 
-    kwargs = {'num_workers': multiprocessing.cpu_count(), 'pin_memory': True} if use_cuda else {}
+    kwargs = {'num_workers': multiprocessing.cpu_count(), 'pin_memory': True} if not use_cuda else {}
 
     # Загрузка обучающего и тестового датасетов
     train_dataset = MelSpecTripletDataset('../train_metadata.csv')
@@ -179,9 +180,10 @@ def main():
 
     # Загрузка модели и истории обучения
     model = MelSpecTripletLossNet(margin=0.2).to(device)
-    model = restore_model(model, model_path)
+    model = restore_model(model, model_path, device)
     last_epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies, train_negative_accuracies, \
-        test_positive_accuracies, test_negative_accuracies = restore_objects(model_path, (0, 0, [], [], [], [], [], []))
+        test_positive_accuracies, test_negative_accuracies = restore_objects(model_path, (0, 0, [], [], [], [], [], []),
+                                                                             device)
 
     start = last_epoch + 1 if max_accuracy > 0 else 0
     optimizer = optim.Adam(model.parameters(), lr=0.0005)
