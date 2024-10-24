@@ -48,9 +48,10 @@ def load_and_visualize_spectrogram(pt_file):
 # Пример использования:
 if __name__ == "__main__":
     # Путь к .pt файлу
-    pt_file_path = "../data/spectrograms/spectrogram_1000.pt"
+    pt_file_path = "../data/spectrograms/"
+    spec_range = range(1675, 1680)
 
     # Визуализация мел-спектрограммы
-    for i in range(5):
-        path = pt_file_path.replace("1000", str(1000 + i))
+    for i in spec_range:
+        path = f"{pt_file_path}/spectrogram_{i}.pt"
         load_and_visualize_spectrogram(path)
