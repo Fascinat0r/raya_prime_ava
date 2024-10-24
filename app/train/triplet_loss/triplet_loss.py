@@ -27,7 +27,7 @@ class TripletLoss(nn.Module):
         :param reduction: Метод агрегации потерь ('mean' или 'sum').
         :return: Значение потерь.
         """
-        logger.info("Вычисление тройной потери...")
+        logger.debug("Вычисление тройной потери...")
 
         # Вычисляем расстояние как (1 - косинусное сходство)
         positive_distance = 1 - self.cosine_similarity(anchor_embeddings, positive_embeddings)
@@ -38,9 +38,9 @@ class TripletLoss(nn.Module):
 
         if reduction == 'mean':
             loss_value = torch.mean(losses)
-            logger.info(f"Средняя потеря: {loss_value.item()}")
+            logger.debug(f"Средняя потеря: {loss_value.item()}")
             return loss_value
         else:
             loss_value = torch.sum(losses)
-            logger.info(f"Суммарная потеря: {loss_value.item()}")
+            logger.debug(f"Суммарная потеря: {loss_value.item()}")
             return loss_value

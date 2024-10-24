@@ -27,6 +27,8 @@ def _get_cosine_distance(a, b):
     return 1 - F.cosine_similarity(a, b)
 
 
+accumulation_steps = 4  # количество шагов для накопления градиентов
+
 def train(model, device, train_loader, optimizer, epoch, log_interval):
     """
     Функция для обучения модели за одну эпоху.
@@ -42,51 +44,39 @@ def train(model, device, train_loader, optimizer, epoch, log_interval):
     losses = []
     positive_accuracy = 0
     negative_accuracy = 0
+    threshold = 0.001
+    optimizer.zero_grad()  # Начинаем с обнуления градиентов
 
     positive_distances = []
     negative_distances = []
 
     for batch_idx, ((ax, ay), (px, py), (nx, ny)) in enumerate(tqdm.tqdm(train_loader)):
         ax, px, nx = ax.to(device), px.to(device), nx.to(device)
-        optimizer.zero_grad()
 
         # Прямой проход
         a_out, p_out, n_out = model(ax, px, nx)
-        loss = model.loss(a_out, p_out, n_out)
-        losses.append(loss.item())
+        loss = model.loss(a_out, p_out, n_out) / accumulation_steps  # Делим loss на количество шагов
+        losses.append(loss.item() * accumulation_steps)  # Умножаем для корректного логирования
 
-        # Вычисляем расстояния и точность
+        # Обратное распространение
+        loss.backward()
+
+        # Накапливаем градиенты и делаем шаг оптимизатора каждые `accumulation_steps` шагов
+        if (batch_idx + 1) % accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()  # Обнуляем градиенты
+
+        # Логирование и вычисление точности
         with torch.no_grad():
             p_distance = _get_cosine_distance(a_out, p_out)
             positive_distances.append(torch.mean(p_distance).item())
-
             n_distance = _get_cosine_distance(a_out, n_out)
             negative_distances.append(torch.mean(n_distance).item())
+            positive_accuracy += torch.sum(p_distance < threshold).item()
+            negative_accuracy += torch.sum(n_distance >= threshold).item()
 
-            positive_distance_mean = np.mean(positive_distances)
-            negative_distance_mean = np.mean(negative_distances)
-
-            positive_std = np.std(positive_distances)
-            threshold = positive_distance_mean + 3 * positive_std
-
-            positive_results = p_distance < threshold
-            positive_accuracy += torch.sum(positive_results).item()
-
-            negative_results = n_distance >= threshold
-            negative_accuracy += torch.sum(negative_results).item()
-
-        # Обратное распространение и шаг оптимизатора
-        loss.backward()
-        optimizer.step()
-
-        # Логирование промежуточных результатов
         if batch_idx % log_interval == 0:
-            logger.info('{} Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                time.ctime(time.time()), epoch, batch_idx * len(ax), len(train_loader.dataset),
-                                                100. * batch_idx / len(train_loader), loss.item()))
-            logger.info(
-                'Train Set: positive_distance_mean: {}, negative_distance_mean: {}, std: {}, threshold: {}'.format(
-                    positive_distance_mean, negative_distance_mean, positive_std, threshold))
+            logger.info(f'Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item()}')
 
     positive_accuracy_mean = 100. * positive_accuracy / len(train_loader.dataset)
     negative_accuracy_mean = 100. * negative_accuracy / len(train_loader.dataset)
@@ -164,7 +154,8 @@ def main():
     Основная функция для настройки и запуска обучения и тестирования модели.
     """
     model_path = 'siamese_melspec_saved/'
-    use_cuda = torch.cuda.is_available()
+    # use_cuda = torch.cuda.is_available()
+    use_cuda = False
     device = torch.device("cuda:0" if use_cuda else "cpu")
     logger.info(f'Используемое устройство: {device}')
 
@@ -181,10 +172,10 @@ def main():
 
     # Загрузка обучающего и тестового датасетов
     train_dataset = MelSpecTripletDataset('../train_metadata.csv')
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, **kwargs)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, **kwargs)
 
     test_dataset = MelSpecTripletDataset('../test_metadata.csv')
-    test_loader = DataLoader(test_dataset, batch_size=2, shuffle=True, **kwargs)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True, **kwargs)
 
     # Загрузка модели и истории обучения
     model = MelSpecTripletLossNet(margin=0.2).to(device)

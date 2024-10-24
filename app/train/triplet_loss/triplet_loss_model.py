@@ -63,7 +63,7 @@ class MelSpecTripletLossNet(MelSpecNet):
         :param reduction: Метод агрегации потерь ('mean' или 'sum').
         :return: Значение потерь.
         """
-        logger.info(f"Вычисление потерь с reduction={reduction}")
+        logger.debug(f"Вычисление потерь с reduction={reduction}")
         loss_val = self.loss_layer(anchor, positive, negative, reduction)
-        logger.info(f"Значение потерь: {loss_val.item()}")
+        logger.debug(f"Значение потерь: {loss_val.item()}")
         return loss_val
