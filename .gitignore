@@ -243,3 +243,7 @@ cache/
 **/data/
 **/.csv
 **/.wav
+**/.pt
+**/.log
+**/logs/
+**/.csv
