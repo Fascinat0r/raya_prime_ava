@@ -46,5 +46,5 @@ class MelSpecCrossEntropyNet(MelSpecNet):
         :return: Значение потерь.
         """
         loss_val = self.loss_layer(predictions, labels)
-        logger.info(f"Потери: {loss_val.item()}")
+        logger.debug(f"Потери: {loss_val.item()}")
         return loss_val
