@@ -1,10 +1,12 @@
 import logging
-
 import numpy as np
 import torch
 import tqdm
 from torch import optim
 from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from app.train.cross_entropy.cross_entropy_dataset import MelSpecCrossEntropyDataset
 from app.train.cross_entropy.cross_entropy_model import MelSpecCrossEntropyNet
@@ -14,6 +16,22 @@ from config import Config
 # Настраиваем логирование
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+def plot_confusion_matrix(conf_matrix, classes):
+    """
+    Визуализирует матрицу ошибок.
+
+    Аргументы:
+    conf_matrix (ndarray): Матрица ошибок.
+    classes (list): Список классов.
+    """
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=classes, yticklabels=classes)
+    plt.xlabel('Предсказанный класс')
+    plt.ylabel('Истинный класс')
+    plt.title('Матрица ошибок')
+    plt.show()
 
 
 def train(model, device, train_loader, optimizer, epoch, log_interval):
@@ -56,6 +74,8 @@ def test(model, device, test_loader, log_interval=None):
     losses = []
     positive_accuracy = 0
     negative_accuracy = 0
+    all_preds = []
+    all_labels = []
 
     logger.info("Начало тестирования модели")
 
@@ -71,6 +91,9 @@ def test(model, device, test_loader, log_interval=None):
             positive_accuracy += torch.sum(pred == y).item()
             negative_accuracy += torch.sum(pred != y).item()
 
+            all_preds.extend(pred.cpu().numpy())
+            all_labels.extend(y.cpu().numpy())
+
             if log_interval is not None and batch_idx % log_interval == 0:
                 logger.info(f"Тест: [{batch_idx * len(x)}/{len(test_loader.dataset)} "
                             f"({100. * batch_idx / len(test_loader):.0f}%)]\tПотери: {test_loss_on:.6f}")
@@ -82,6 +105,11 @@ def test(model, device, test_loader, log_interval=None):
     logger.info(
         f"\nТестовый набор: Средние потери: {test_loss:.4f}, Positive Accuracy: {positive_accuracy}/{len(test_loader.dataset)} "
         f"({positive_accuracy_mean:.2f}%), Negative Accuracy: {negative_accuracy}/{len(test_loader.dataset)} ({negative_accuracy_mean:.2f}%)")
+
+    # Расчет и вывод матрицы ошибок
+    conf_matrix = confusion_matrix(all_labels, all_preds)
+    plot_confusion_matrix(conf_matrix, classes=['Negative', 'Positive'])
+
     return test_loss, positive_accuracy_mean, negative_accuracy_mean
 
 
@@ -141,11 +169,11 @@ def main(config: Config):
 
         if test_accuracy > max_accuracy:
             max_accuracy = test_accuracy
-            save_model(model, epoch, model_path)
-            save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
-                          train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
-                         epoch, model_path)
-            logger.info(f"Сохранена модель эпохи {epoch} как контрольная точка.")
+        save_model(model, epoch, model_path)
+        save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
+                      train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
+                     epoch, model_path)
+        logger.info(f"Сохранена модель эпохи {epoch} как контрольная точка.")
 
 
 if __name__ == '__main__':
