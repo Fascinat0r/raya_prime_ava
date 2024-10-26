@@ -15,7 +15,7 @@ class MelSpecCrossEntropyDataset(Dataset):
     Использует файл метаданных для управления загрузкой данных.
     """
 
-    def __init__(self, metadata_file):
+    def __init__(self, metadata_file, shape):
         logger.info(f"Загрузка метаданных из файла: {metadata_file}")
         # Загружаем метаданные из CSV
         self.metadata = pd.read_csv(metadata_file)
@@ -26,6 +26,8 @@ class MelSpecCrossEntropyDataset(Dataset):
 
         # Расчет количества образцов для каждого класса
         self.label_to_index_range = self._calculate_label_ranges()
+
+        self.shape = shape
 
         logger.info(f"Количество классов: {self.num_classes}, Количество образцов: {self.len_}")
 
@@ -41,8 +43,7 @@ class MelSpecCrossEntropyDataset(Dataset):
             start += count
         return label_to_index_range
 
-    @staticmethod
-    def _pt_loader(path):
+    def _pt_loader(self, path):
         """
         Вспомогательная функция для загрузки .pt файлов.
         """
@@ -50,15 +51,14 @@ class MelSpecCrossEntropyDataset(Dataset):
             sample = torch.load(path)
 
             # Проверка формы данных
-            assert sample.shape[0] == 1 and sample.shape[1] == 64 and sample.shape[
-                2] == 64, "Неправильная форма данных!"
+            assert sample.shape[0] == 1 and sample.shape[1] == self.shape[0] and sample.shape[
+                2] == self.shape[1], "Неправильная форма данных!"
             logger.debug(f"Загрузка файла: {path}, Размер: {sample.shape}")
             return sample
 
         except Exception as e:
             logger.error(f"Ошибка при загрузке {path}: {e}")
             raise
-
 
     def __getitem__(self, index):
         """

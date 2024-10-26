@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 
 from app.train.cross_entropy.cross_entropy_model import MelSpecCrossEntropyNet
 from app.train.pt_utils import restore_model
+from config import Config
 from logger import get_logger
 from preprocessing.full_processing_pipeline import process_audio_to_spectrograms
 
@@ -42,10 +43,11 @@ def plot_predictions(predictions):
     plt.title("Predictions by Audio Segments")
     plt.legend()
     plt.grid(True)
+    plt.savefig("1.png")
     plt.show()
 
 
-def main(audio_file, model_path):
+def main(audio_file, model_path, config):
     """
     Основная функция для обработки аудио файла и применения модели для предсказания.
     :param audio_file: Путь к аудио файлу.
@@ -60,7 +62,7 @@ def main(audio_file, model_path):
     model = restore_model(model, model_path, device)
 
     logger.info(f"Обработка аудио файла: {audio_file}")
-    mel_spectrograms = process_audio_to_spectrograms(audio_file)
+    mel_spectrograms = process_audio_to_spectrograms(audio_file, config)
 
     logger.info("Применение модели к сегментам...")
     predictions = predict_audio_segments(model, device, mel_spectrograms)
@@ -76,7 +78,7 @@ def main(audio_file, model_path):
 if __name__ == "__main__":
     # Пример использования
     audio_file = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #10 ЖИВОЙ РОБОТ • Майнкрафт.wav"  # Укажите путь к вашему аудио файлу
-    model_path = "../weights/"  # Путь к папке с моделью
-
-    predictions = main(audio_file, model_path)
+    model_path = "../train/weights/"  # Путь к папке с моделью
+    config = Config()
+    predictions = main(audio_file, model_path, config)
     print("Предсказания:", predictions)

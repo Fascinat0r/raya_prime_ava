@@ -36,19 +36,21 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
     return mel_spectrogram_transform(audio_segment)
 
 
-def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int):
+def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int, overlap: float):
     """
-    Разделяет аудиоданные на сегменты заданной длины.
+    Разделяет аудиоданные на сегменты заданной длины с перекрытием.
 
     Аргументы:
     audio_data (Tensor): Аудиоданные в формате Tensor.
     segment_length_samples (int): Длина сегмента в сэмплах.
+    overlap (float): Процент перекрытия между сегментами (0.0 - 1.0).
 
     Возвращает:
     Генератор, который возвращает сегменты аудиоданных.
     """
     num_samples = audio_data.shape[1]
-    for start in range(0, num_samples, segment_length_samples):
+    step_size = int(segment_length_samples * (1 - overlap))  # Рассчитываем шаг с учетом перекрытия
+    for start in range(0, num_samples - segment_length_samples + 1, step_size):
         yield audio_data[:, start:start + segment_length_samples]
 
 
@@ -80,7 +82,8 @@ def process_audio_file(filepath: str,
                        target_segment_shape: tuple,
                        n_fft: int,
                        hop_length: int,
-                       n_mels: int):
+                       n_mels: int,
+                       overlap: float):
     """
     Обрабатывает аудиофайл, преобразуя его в мел-спектрограммы и деля их на сегменты.
 
@@ -91,6 +94,7 @@ def process_audio_file(filepath: str,
     n_fft (int): Размер окна FFT.
     hop_length (int): Шаг окна.
     n_mels (int): Количество фильтров Мела.
+    overlap (float): Процент перекрытия между сегментами (0.0 - 1.0).
 
     Возвращает:
     List[Tensor]: Список мел-спектрограмм для каждого сегмента.
@@ -108,8 +112,8 @@ def process_audio_file(filepath: str,
     mel_segments = []
     leftover_mel = None
 
-    # Обрабатываем каждый сегмент аудио по одному
-    for audio_segment in segment_audio_data(waveform, segment_length_samples):
+    # Обрабатываем каждый сегмент аудио с перекрытием
+    for audio_segment in segment_audio_data(waveform, segment_length_samples, overlap):
         mel_spectrogram = process_audio_segment_to_mel_spectrogram(audio_segment, sample_rate, n_fft, hop_length,
                                                                    n_mels)
         # Преобразуем мел-спектрограмму в децибелы
@@ -142,12 +146,14 @@ if __name__ == "__main__":
     n_fft = 2048  # Размер окна FFT
     hop_length = 256  # Шаг окна
     n_mels = 128  # Количество фильтров Мела
+    overlap = 0.3  # Перекрытие сегментов (30%)
 
     # Преобразуем аудио в мел-спектрограммы сегментов
-    mel_segments = process_audio_file(filepath, segment_length_seconds, target_segment_shape, n_fft, hop_length, n_mels)
+    mel_segments = process_audio_file(filepath, segment_length_seconds, target_segment_shape, n_fft, hop_length, n_mels,
+                                      overlap)
 
     # Вывод информации
     print(f"Извлечено {len(mel_segments)} сегментов.")
     if mel_segments:
-        print(f"Размер первого сегмента: {mel_segments[10].shape}")
-        plot_mel_spectrogram(mel_segments[10], title="Пример мел-спектрограммы")
+        print(f"Размер первого сегмента: {mel_segments[0].shape}")
+        plot_mel_spectrogram(mel_segments[0], title="Пример мел-спектрограммы")

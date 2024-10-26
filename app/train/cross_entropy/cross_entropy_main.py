@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from app.train.cross_entropy.cross_entropy_dataset import MelSpecCrossEntropyDataset
 from app.train.cross_entropy.cross_entropy_model import MelSpecCrossEntropyNet
 from app.train.pt_utils import restore_model, restore_objects, save_model, save_objects
+from config import Config
 
 # Настраиваем логирование
 logger = logging.getLogger(__name__)
@@ -84,9 +85,9 @@ def test(model, device, test_loader, log_interval=None):
     return test_loss, positive_accuracy_mean, negative_accuracy_mean
 
 
-def main():
-    model_path = '../weights/'  # Путь для сохранения модели
-    use_cuda = torch.cuda.is_available()
+def main(config: Config):
+    model_path = config.MODEL_PATH
+    use_cuda = config.USE_CUDA
     device = torch.device("cuda:0" if use_cuda else "cpu")
 
     if use_cuda:
@@ -100,11 +101,11 @@ def main():
 
     kwargs = {'num_workers': 2, 'pin_memory': False} if use_cuda else {}
 
-    train_dataset = MelSpecCrossEntropyDataset('../train_metadata.csv')
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, **kwargs)
+    train_dataset = MelSpecCrossEntropyDataset('../train_metadata.csv', config.SPECTROGRAM_SIZE)
+    train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True, **kwargs)
 
-    test_dataset = MelSpecCrossEntropyDataset('../test_metadata.csv')
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=True, **kwargs)
+    test_dataset = MelSpecCrossEntropyDataset('../test_metadata.csv', config.SPECTROGRAM_SIZE)
+    test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=True, **kwargs)
 
     model = MelSpecCrossEntropyNet(reduction='mean').to(device)
     model = restore_model(model, model_path, device)
@@ -115,9 +116,9 @@ def main():
         model_path, (0, 0, [], [], [], [], [], []), device)
 
     start = last_epoch + 1 if max_accuracy > 0 else 0
-    optimizer = optim.Adam(model.parameters(), lr=0.0005)
+    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
 
-    for epoch in range(start, start + 20):
+    for epoch in range(start, start + config.EPOCHS):
         train_loss, train_positive_accuracy, train_negative_accuracy = train(
             model, device, train_loader, optimizer, epoch, log_interval=500)
 
@@ -148,4 +149,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    config = Config()
+
+    main(config)

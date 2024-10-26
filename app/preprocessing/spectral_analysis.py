@@ -8,7 +8,7 @@ def plot_mel_spectrogram(mel_spectrogram, title="Mel Spectrogram", xlabel="Time 
     Визуализирует мел-спектрограмму.
 
     Аргументы:
-    mel_spectrogram (Tensor или np.array): Массив или тензор мел-спектрограммы размером (1, 64, 64).
+    mel_spectrogram (Tensor или np.array): Массив или тензор мел-спектрограммы размером (1, x, x).
     title (str): Заголовок графика.
     xlabel (str): Метка для оси X.
     ylabel (str): Метка для оси Y.
@@ -17,10 +17,10 @@ def plot_mel_spectrogram(mel_spectrogram, title="Mel Spectrogram", xlabel="Time 
         mel_spectrogram = mel_spectrogram.cpu().numpy()
 
     # Выведем предупреждение, если размерность не соответствует ожидаемой
-    if mel_spectrogram.shape != (128, 128):
+    if mel_spectrogram.shape != (64, 64):
         print(f"Размер мел-спектрограммы не соответствует ожидаемому: {mel_spectrogram.shape}")
 
-    # Если тензор имеет форму (1, 64, 64), убираем ось с единичной размерностью
+    # Если тензор имеет форму (1, x, x), убираем ось с единичной размерностью
     if mel_spectrogram.shape[0] == 1:
         mel_spectrogram = mel_spectrogram.squeeze(0)
 
