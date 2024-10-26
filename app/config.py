@@ -43,6 +43,11 @@ class Config:
     HOP_LENGTH = 512
     N_MELS = SPECTROGRAM_SIZE[0]
 
+    # Параметры аугментации
+    AUGMENTATION_THRESHOLD = 0.8  # Порог дисбаланса для запуска аугментации
+    AUGMENTATION_RATIO = 0.5  # Отношение количества аугментированных данных к существующим
+    MAX_AUGMENTATION_PROCESSES = 4  # Количество параллельных процессов для аугментации
+    NOISE_FACTOR = 0.005  # Фактор добавляемого шума для аугментации
 
     # Параметры обучения
     EPOCHS = 20
