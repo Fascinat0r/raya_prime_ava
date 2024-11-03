@@ -15,7 +15,7 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
     """
     Преобразует сегмент аудио в мел-спектрограмму.
     """
-    logger.info(f"Processing audio segment: shape={audio_segment.shape}, sample_rate={sample_rate}, "
+    logger.debug(f"Processing audio segment: shape={audio_segment.shape}, sample_rate={sample_rate}, "
                 f"n_fft={n_fft}, hop_length={hop_length}, n_mels={n_mels}")
 
     if audio_segment.shape[1] < n_fft:
@@ -24,7 +24,7 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
 
     if audio_segment.shape[0] > 1:
         audio_segment = torch.mean(audio_segment, dim=0, keepdim=True)
-        logger.info(f"Converted to mono: shape={audio_segment.shape}")
+        logger.debug(f"Converted to mono: shape={audio_segment.shape}")
 
     mel_spectrogram_transform = MelSpectrogram(
         sample_rate=sample_rate,
@@ -33,7 +33,7 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
         n_mels=n_mels
     )
     mel_spectrogram = mel_spectrogram_transform(audio_segment)
-    logger.info(f"Generated mel spectrogram: shape={mel_spectrogram.shape}")
+    logger.debug(f"Generated mel spectrogram: shape={mel_spectrogram.shape}")
     return mel_spectrogram
 
 
@@ -42,12 +42,12 @@ def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int):
     Разделяет аудиоданные на сегменты фиксированной длины (без перекрытия).
     """
     num_samples = audio_data.shape[1]
-    logger.info(f"Segmenting audio data: total_samples={num_samples}, segment_length={segment_length_samples}")
+    logger.debug(f"Segmenting audio data: total_samples={num_samples}, segment_length={segment_length_samples}")
 
     for start in range(0, num_samples, segment_length_samples):
         end = min(start + segment_length_samples, num_samples)
         segment = audio_data[:, start:end]
-        logger.info(f"Yielding audio segment: start_frame={start}, end_frame={end}, segment_shape={segment.shape}")
+        logger.debug(f"Yielding audio segment: start_frame={start}, end_frame={end}, segment_shape={segment.shape}")
         yield segment, start
 
 
@@ -61,21 +61,21 @@ def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple, o
     step_size = int(target_frames * (1 - overlap))
     num_frames = mel_spectrogram.shape[2]
 
-    logger.info(f"Dividing mel spectrogram: shape={mel_spectrogram.shape}, target_shape={target_shape}, "
+    logger.debug(f"Dividing mel spectrogram: shape={mel_spectrogram.shape}, target_shape={target_shape}, "
                 f"step_size={step_size}, overlap={overlap}")
 
     for start in range(0, num_frames - target_frames + 1, step_size):
         segment = mel_spectrogram[:, :, start:start + target_frames]
         # Корректируем `start_frame` в аудиофреймах по hop_length
         frame_in_audio_samples = start_frame + start * hop_length
-        logger.info(f"Extracted segment: start_frame_in_audio={frame_in_audio_samples}, end_frame_in_audio={frame_in_audio_samples + target_frames * hop_length}, "
+        logger.debug(f"Extracted segment: start_frame_in_audio={frame_in_audio_samples}, end_frame_in_audio={frame_in_audio_samples + target_frames * hop_length}, "
                     f"segment_shape={segment.shape}")
 
         if segment.shape[2] == target_frames:
             mel_segments.append(segment)
             frame_indices.append(frame_in_audio_samples)
 
-    logger.info(f"Total segments created: {len(mel_segments)}")
+    logger.debug(f"Total segments created: {len(mel_segments)}")
     return mel_segments, frame_indices
 
 
@@ -89,17 +89,17 @@ def process_audio_file(filepath: str,
     """
     Обрабатывает аудиофайл, преобразуя его в мел-спектрограммы и деля на целевые сегменты.
     """
-    logger.info(f"Processing audio file: {filepath}")
+    logger.debug(f"Processing audio file: {filepath}")
     waveform, sample_rate = torchaudio.load(filepath)
-    logger.info(f"Loaded waveform: shape={waveform.shape}, sample_rate={sample_rate}")
+    logger.debug(f"Loaded waveform: shape={waveform.shape}, sample_rate={sample_rate}")
 
     if waveform.shape[0] > 1:
         waveform = torch.mean(waveform, dim=0, keepdim=True)
-        logger.info(f"Converted to mono: shape={waveform.shape}")
+        logger.debug(f"Converted to mono: shape={waveform.shape}")
 
     # Длина 10-секундного блока в сэмплах
     segment_length_samples = int(segment_length_seconds * sample_rate)
-    logger.info(f"10-second segment length in samples: {segment_length_samples}")
+    logger.debug(f"10-second segment length in samples: {segment_length_samples}")
 
     mel_segments = []
     segment_metadata = []
@@ -126,7 +126,7 @@ def process_audio_file(filepath: str,
     # Преобразуем стартовые фреймы в секунды
     segment_metadata = [(frame_idx / float(sample_rate), segment) for frame_idx, segment in segment_metadata]
 
-    logger.info(f"Processed {len(mel_segments)} mel spectrogram segments from file: {filepath}")
+    logger.debug(f"Processed {len(mel_segments)} mel spectrogram segments from file: {filepath}")
     return segment_metadata
 
 
@@ -139,10 +139,10 @@ if __name__ == "__main__":
     n_mels = 64
     overlap = 0.5
 
-    logger.info("Starting audio processing")
+    logger.debug("Starting audio processing")
     mel_segments_with_times = process_audio_file(filepath, segment_length_seconds, target_segment_shape, n_fft,
                                                  hop_length, n_mels, overlap)
 
-    logger.info(f"Extracted {len(mel_segments_with_times)} segments with start times.")
+    logger.debug(f"Extracted {len(mel_segments_with_times)} segments with start times.")
     for start_time, segment in mel_segments_with_times:
-        logger.info(f"Segment start time: {start_time:.2f} seconds, segment shape: {segment.shape}")
+        logger.debug(f"Segment start time: {start_time:.2f} seconds, segment shape: {segment.shape}")
