@@ -26,5 +26,5 @@ def extract_audio_from_mp4(folder_path):
 
 
 # Пример использования
-video_folder = "E:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт"  # Путь к папке с видеофайлами
+video_folder = "D:\\4K_Video_Downloader\\raya_prime_ava\\app\\predict"  # Путь к папке с видеофайлами
 extract_audio_from_mp4(video_folder)

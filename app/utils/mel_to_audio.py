@@ -1,6 +1,5 @@
-import torch
-import torchaudio
 import matplotlib.pyplot as plt
+import torchaudio
 from torchaudio.transforms import MelSpectrogram, InverseMelScale, GriffinLim
 
 # Загружаем аудио WAV файл
@@ -9,9 +8,9 @@ waveform, sample_rate = torchaudio.load("data/raw/example.wav")
 # Преобразование в мел-спектрограмму с улучшенными параметрами
 mel_spectrogram_transform = MelSpectrogram(
     sample_rate=sample_rate,
-    n_fft=2048,        # Увеличенное разрешение частоты
-    hop_length=256,    # Меньший шаг для более точного восстановления
-    n_mels=128         # Увеличено количество мел-фильтров
+    n_fft=2048,  # Увеличенное разрешение частоты
+    hop_length=256,  # Меньший шаг для более точного восстановления
+    n_mels=128  # Увеличено количество мел-фильтров
 )
 
 # Применяем преобразование к сигналу

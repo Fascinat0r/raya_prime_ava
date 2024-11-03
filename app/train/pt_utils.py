@@ -1,6 +1,7 @@
 import glob
 import os
 import pickle
+
 import torch
 
 
@@ -91,4 +92,3 @@ def restore_objects(out_path, default, device):
                 return default
     else:
         return default
-

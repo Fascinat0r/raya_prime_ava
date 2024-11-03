@@ -16,7 +16,7 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
     Преобразует сегмент аудио в мел-спектрограмму.
     """
     logger.debug(f"Processing audio segment: shape={audio_segment.shape}, sample_rate={sample_rate}, "
-                f"n_fft={n_fft}, hop_length={hop_length}, n_mels={n_mels}")
+                 f"n_fft={n_fft}, hop_length={hop_length}, n_mels={n_mels}")
 
     if audio_segment.shape[1] < n_fft:
         logger.warning(f"Audio segment too short for n_fft={n_fft}. Segment length: {audio_segment.shape[1]}")
@@ -51,7 +51,8 @@ def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int):
         yield segment, start
 
 
-def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple, overlap: float, start_frame: int, hop_length: int):
+def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple, overlap: float, start_frame: int,
+                           hop_length: int):
     """
     Делит мел-спектрограмму на части заданного размера с перекрытием, возвращая стартовые фреймы сегментов.
     """
@@ -62,14 +63,15 @@ def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple, o
     num_frames = mel_spectrogram.shape[2]
 
     logger.debug(f"Dividing mel spectrogram: shape={mel_spectrogram.shape}, target_shape={target_shape}, "
-                f"step_size={step_size}, overlap={overlap}")
+                 f"step_size={step_size}, overlap={overlap}")
 
     for start in range(0, num_frames - target_frames + 1, step_size):
         segment = mel_spectrogram[:, :, start:start + target_frames]
         # Корректируем `start_frame` в аудиофреймах по hop_length
         frame_in_audio_samples = start_frame + start * hop_length
-        logger.debug(f"Extracted segment: start_frame_in_audio={frame_in_audio_samples}, end_frame_in_audio={frame_in_audio_samples + target_frames * hop_length}, "
-                    f"segment_shape={segment.shape}")
+        logger.debug(
+            f"Extracted segment: start_frame_in_audio={frame_in_audio_samples}, end_frame_in_audio={frame_in_audio_samples + target_frames * hop_length}, "
+            f"segment_shape={segment.shape}")
 
         if segment.shape[2] == target_frames:
             mel_segments.append(segment)
@@ -117,7 +119,8 @@ def process_audio_file(filepath: str,
         mel_spectrogram = 10 * torch.log10(mel_spectrogram + 1e-10)
 
         # Шаг 3: Разделяем мел-спектрограмму на целевые сегменты (64, 64) с перекрытием
-        new_segments, frame_indices = divide_mel_spectrogram(mel_spectrogram, target_segment_shape, overlap, start_frame, hop_length)
+        new_segments, frame_indices = divide_mel_spectrogram(mel_spectrogram, target_segment_shape, overlap,
+                                                             start_frame, hop_length)
         mel_segments.extend(new_segments)
 
         # Записываем стартовые фреймы в аудиофреймах

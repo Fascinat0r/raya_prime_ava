@@ -68,7 +68,7 @@ def main(audio_file, model_path, config):
     model = restore_model(model, model_path, device)
 
     logger.info(f"Обработка аудио файла: {audio_file}")
-    mel_spectrograms = process_audio_to_spectrograms(audio_file, config, overlap=0.5)
+    mel_spectrograms = process_audio_to_spectrograms(audio_file, config, overlap=0.9)
 
     logger.info("Применение модели к сегментам...")
     predictions, start_times = predict_audio_segments(model, device, mel_spectrograms)
@@ -83,14 +83,14 @@ def main(audio_file, model_path, config):
 
 if __name__ == "__main__":
     # Пример использования
-    audio_file = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #14 ХАКЕР ГРАБИТЕЛЬ • Майнкрафт.wav"
+    audio_file = "output_segment.wav"
     model_path = "../train/weights/"  # Путь к папке с моделью
     config = Config()
     predictions, start_times = main(audio_file, model_path, config)
     segment_time = config.HOP_LENGTH / 44100
 
     # Сортируем предсказания по времени
-    predictions, start_times = zip(*sorted(zip(predictions, start_times)))
+    # predictions, start_times = zip(*sorted(zip(predictions, start_times)))
 
     # Сохраняем предсказания в файл csv
     with open("predictions.csv", "w") as f:

@@ -1,9 +1,8 @@
 import pandas as pd
-import numpy as np
 from scipy.signal import medfilt
 
 
-def process_predictions(file_path, threshold=0.5, min_duration=0.5, merge_gap=0.1):
+def process_predictions(file_path, threshold=0.6, min_duration=0.5, merge_gap=0.1):
     try:
         # Загружаем предсказания
         data = pd.read_csv(file_path)
@@ -13,7 +12,7 @@ def process_predictions(file_path, threshold=0.5, min_duration=0.5, merge_gap=0.
             raise KeyError("В файле отсутствует столбец 'prediction'. Проверьте заголовки файла.")
 
         # Применяем медианное сглаживание
-        data['smoothed_prediction'] = medfilt(data['prediction'], kernel_size=3)
+        data['smoothed_prediction'] = medfilt(data['prediction'], kernel_size=4)
 
         # Применяем пороговое значение вероятности
         data['is_voice'] = data['smoothed_prediction'] >= threshold

@@ -1,6 +1,7 @@
+import os
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
-import os
 
 
 def split_melspec_data(metadata_path, train_ratio=0.8, output_dir="./"):
