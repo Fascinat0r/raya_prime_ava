@@ -1,7 +1,6 @@
 import torch
 import torchaudio
 from torchaudio.transforms import MelSpectrogram
-
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -14,24 +13,17 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
                                              n_mels: int):
     """
     Преобразует сегмент аудио в мел-спектрограмму.
-
-    Аргументы:
-    audio_segment (Tensor): Сегмент аудиоданных.
-    sample_rate (int): Частота дискретизации.
-    n_fft (int): Размер окна FFT.
-    hop_length (int): Шаг окна.
-    n_mels (int): Количество фильтров Мела.
-
-    Возвращает:
-    Tensor: Мел-спектрограмма для данного сегмента.
     """
+    logger.info(f"Processing audio segment: shape={audio_segment.shape}, sample_rate={sample_rate}, "
+                f"n_fft={n_fft}, hop_length={hop_length}, n_mels={n_mels}")
+
     if audio_segment.shape[1] < n_fft:
-        logger.warning(
-            f"Сегмент аудио слишком короткий для n_fft={n_fft}. Уменьшите n_fft или увеличьте длину сегмента.")
+        logger.warning(f"Audio segment too short for n_fft={n_fft}. Segment length: {audio_segment.shape[1]}")
         return None
 
     if audio_segment.shape[0] > 1:
         audio_segment = torch.mean(audio_segment, dim=0, keepdim=True)
+        logger.info(f"Converted to mono: shape={audio_segment.shape}")
 
     mel_spectrogram_transform = MelSpectrogram(
         sample_rate=sample_rate,
@@ -39,50 +31,51 @@ def process_audio_segment_to_mel_spectrogram(audio_segment: torch.Tensor,
         hop_length=hop_length,
         n_mels=n_mels
     )
-    return mel_spectrogram_transform(audio_segment)
+    mel_spectrogram = mel_spectrogram_transform(audio_segment)
+    logger.info(f"Generated mel spectrogram: shape={mel_spectrogram.shape}")
+    return mel_spectrogram
 
 
-def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int, overlap: float, sample_rate: int):
+def segment_audio_data(audio_data: torch.Tensor, segment_length_samples: int, sample_rate: int):
     """
-    Разделяет аудиоданные на сегменты заданной длины с перекрытием.
-
-    Аргументы:
-    audio_data (Tensor): Аудиоданные.
-    segment_length_samples (int): Длина сегмента в сэмплах.
-    overlap (float): Процент перекрытия между сегментами.
-    sample_rate (int): Частота дискретизации.
-
-    Возвращает:
-    Generator: Генератор сегментов и времени начала каждого сегмента.
+    Разделяет аудиоданные на сегменты фиксированной длины (без перекрытия).
     """
-    step_size = int(segment_length_samples * (1 - overlap))
-    for start in range(0, audio_data.shape[1], step_size):
-        end = min(start + segment_length_samples, audio_data.shape[1])  # Последний сегмент может быть короче
+    num_samples = audio_data.shape[1]
+    logger.info(f"Segmenting audio data: total_samples={num_samples}, segment_length={segment_length_samples}")
+
+    for start in range(0, num_samples, segment_length_samples):
+        end = min(start + segment_length_samples, num_samples)
         segment = audio_data[:, start:end]
-        start_time = start / sample_rate  # Время начала сегмента в секундах
-        yield segment, start_time
+        start_time = start / float(sample_rate)
+
+        logger.info(f"Yielding audio segment: start={start}, end={end}, start_time={start_time:.2f} seconds, "
+                    f"segment_shape={segment.shape}")
+
+        if segment.shape[1] <= segment_length_samples:
+            yield segment, start_time
 
 
-def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple):
+def divide_mel_spectrogram(mel_spectrogram: torch.Tensor, target_shape: tuple, overlap: float):
     """
-    Делит мел-спектрограмму на части заданного размера.
-
-    Аргументы:
-    mel_spectrogram (Tensor): Мел-спектрограмма для деления.
-    target_shape (tuple): Целевая форма (количество мел-фильтров, временные фреймы).
-
-    Возвращает:
-    List[Tensor]: Список сегментов мел-спектрограммы.
+    Делит мел-спектрограмму на части заданного размера с перекрытием.
     """
     target_mels, target_frames = target_shape
     mel_segments = []
-
+    step_size = int(target_frames * (1 - overlap))
     num_frames = mel_spectrogram.shape[2]
-    for start in range(0, num_frames, target_frames):
+
+    logger.info(f"Dividing mel spectrogram: shape={mel_spectrogram.shape}, target_shape={target_shape}, "
+                f"step_size={step_size}, overlap={overlap}")
+
+    for start in range(0, num_frames - target_frames + 1, step_size):
         segment = mel_spectrogram[:, :, start:start + target_frames]
+        logger.info(f"Extracted segment: start_frame={start}, end_frame={start + target_frames}, "
+                    f"segment_shape={segment.shape}")
+
         if segment.shape[2] == target_frames:
             mel_segments.append(segment)
 
+    logger.info(f"Total segments created: {len(mel_segments)}")
     return mel_segments
 
 
@@ -94,52 +87,43 @@ def process_audio_file(filepath: str,
                        n_mels: int,
                        overlap: float):
     """
-    Обрабатывает аудиофайл, преобразуя его в мел-спектрограммы и деля на сегменты.
-
-    Аргументы:
-    filepath (str): Путь к аудиофайлу.
-    segment_length_seconds (int): Длина сегмента в секундах.
-    target_segment_shape (tuple): Целевая форма сегмента мел-спектрограммы.
-    n_fft (int): Размер окна FFT.
-    hop_length (int): Шаг окна.
-    n_mels (int): Количество фильтров Мела.
-    overlap (float): Процент перекрытия между сегментами.
-
-    Возвращает:
-    List[tuple]: Список кортежей, содержащих время начала и сегменты мел-спектрограммы.
+    Обрабатывает аудиофайл, преобразуя его в мел-спектрограммы и деля на целевые сегменты.
     """
-    logger.info(f"Обработка аудиофайла {filepath}")
+    logger.info(f"Processing audio file: {filepath}")
     waveform, sample_rate = torchaudio.load(filepath)
+    logger.info(f"Loaded waveform: shape={waveform.shape}, sample_rate={sample_rate}")
 
-    # Преобразование в моно, если есть несколько каналов
     if waveform.shape[0] > 1:
         waveform = torch.mean(waveform, dim=0, keepdim=True)
+        logger.info(f"Converted to mono: shape={waveform.shape}")
 
-    segment_length_samples = segment_length_seconds * sample_rate
+    # Длина 10-секундного блока в сэмплах
+    segment_length_samples = int(segment_length_seconds * sample_rate)
+    logger.info(f"10-second segment length in samples: {segment_length_samples}")
+
     mel_segments = []
     segment_metadata = []
-    leftover_mel = None
 
-    for audio_segment, start_time in segment_audio_data(waveform, segment_length_samples, overlap, sample_rate):
-        mel_spectrogram = process_audio_segment_to_mel_spectrogram(audio_segment, sample_rate, n_fft, hop_length,
-                                                                   n_mels)
+    # Шаг 1: Разбиваем аудио на 10-секундные блоки
+    for audio_segment, start_time in segment_audio_data(waveform, segment_length_samples, sample_rate):
+        # Шаг 2: Преобразуем блок в мел-спектрограмму
+        mel_spectrogram = process_audio_segment_to_mel_spectrogram(audio_segment, sample_rate, n_fft, hop_length, n_mels)
         if mel_spectrogram is None:
+            logger.warning(f"Skipping segment starting at {start_time:.2f} seconds due to short length.")
             continue
+
+        # Преобразуем спектрограмму в логарифмическую шкалу
         mel_spectrogram = 10 * torch.log10(mel_spectrogram + 1e-10)
 
-        if leftover_mel is not None:
-            mel_spectrogram = torch.cat((leftover_mel, mel_spectrogram), dim=2)
-
-        new_segments = divide_mel_spectrogram(mel_spectrogram, target_segment_shape)
+        # Шаг 3: Разделяем мел-спектрограмму на целевые сегменты (64, 64) с перекрытием
+        new_segments = divide_mel_spectrogram(mel_spectrogram, target_segment_shape, overlap)
         mel_segments.extend(new_segments)
 
+        # Записываем метаданные для каждого сегмента
         segment_metadata.extend([(start_time + i * (target_segment_shape[1] * hop_length / sample_rate), segment)
                                  for i, segment in enumerate(new_segments)])
 
-        num_frames = mel_spectrogram.shape[2]
-        leftover_frames = num_frames % target_segment_shape[1]
-        leftover_mel = mel_spectrogram[:, :, -leftover_frames:] if leftover_frames > 0 else None
-
+    logger.info(f"Processed {len(mel_segments)} mel spectrogram segments from file: {filepath}")
     return segment_metadata
 
 
@@ -150,11 +134,12 @@ if __name__ == "__main__":
     n_fft = 2048
     hop_length = 256
     n_mels = 64
-    overlap = 0.3
+    overlap = 0.5
 
+    logger.info("Starting audio processing")
     mel_segments_with_times = process_audio_file(filepath, segment_length_seconds, target_segment_shape, n_fft,
                                                  hop_length, n_mels, overlap)
 
-    print(f"Извлечено {len(mel_segments_with_times)} сегментов с таймкодами.")
+    logger.info(f"Extracted {len(mel_segments_with_times)} segments with start times.")
     for start_time, segment in mel_segments_with_times:
-        print(f"Start time: {start_time:.2f} seconds")
+        logger.info(f"Segment start time: {start_time:.2f} seconds, segment shape: {segment.shape}")
