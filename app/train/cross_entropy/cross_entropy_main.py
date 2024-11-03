@@ -1,12 +1,13 @@
 import logging
+
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
 import tqdm
+from sklearn.metrics import confusion_matrix
 from torch import optim
 from torch.utils.data import DataLoader
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from app.train.cross_entropy.cross_entropy_dataset import MelSpecCrossEntropyDataset
 from app.train.cross_entropy.cross_entropy_model import MelSpecCrossEntropyNet
@@ -113,7 +114,12 @@ def test(model, device, test_loader, log_interval=None):
     return test_loss, positive_accuracy_mean, negative_accuracy_mean
 
 
-def main(config: Config):
+def cross_entropy_train(config: Config):
+    """
+    Функция для обучения модели с использованием кросс-энтропии.
+    :param config: Конфигурация обучения.
+    :return: None
+    """
     model_path = config.MODEL_PATH
     use_cuda = config.USE_CUDA
     device = torch.device("cuda:0" if use_cuda else "cpu")
@@ -165,18 +171,20 @@ def main(config: Config):
         test_positive_accuracies.append(test_positive_accuracy)
         test_negative_accuracies.append(test_negative_accuracy)
 
-        test_accuracy = (test_positive_accuracy + test_negative_accuracy) / 2
+        # Рассчитываем текущую среднюю точность
+        test_accuracy = test_positive_accuracy
 
+        # Сохраняем модель только если достигнута лучшая точность
         if test_accuracy > max_accuracy:
             max_accuracy = test_accuracy
-        save_model(model, epoch, model_path)
-        save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
-                      train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
-                     epoch, model_path)
-        logger.info(f"Сохранена модель эпохи {epoch} как контрольная точка.")
+            save_model(model, epoch, model_path)
+            save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
+                          train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
+                         epoch, model_path)
+            logger.info(f"Сохранена модель эпохи {epoch} как контрольная точка с точностью {test_accuracy:.2f}%.")
 
 
 if __name__ == '__main__':
     config = Config()
 
-    main(config)
+    cross_entropy_train(config)

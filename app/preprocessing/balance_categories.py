@@ -4,7 +4,7 @@ import random
 import pandas as pd
 
 from logger import get_logger
-from augmentation import augment_file
+from preprocessing.augment import augment_file
 
 # Пути к файлам и папкам
 METADATA_FILE = "../data/metadata.csv"

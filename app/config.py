@@ -45,9 +45,16 @@ class Config:
 
     # Параметры аугментации
     AUGMENTATION_THRESHOLD = 0.8  # Порог дисбаланса для запуска аугментации
-    AUGMENTATION_RATIO = 0.5  # Отношение количества аугментированных данных к существующим
+    AUGMENTATION_RATIO = 0.75  # Отношение количества аугментированных данных к существующим
     MAX_AUGMENTATION_PROCESSES = 4  # Количество параллельных процессов для аугментации
-    NOISE_FACTOR = 0.005  # Фактор добавляемого шума для аугментации
+    NOISE_FACTOR_RANGE = [0.005, 0.1]  # Фактор добавляемого шума для аугментации]
+    VOLUME_RANGE = [0.005, 0.01]
+
+    # Параметры для предсказания
+    PREDICTION_THRESHOLD = 0.6
+    MIN_VOICE_DURATION = 0.5
+    MAX_PAUSE = 1
+    WINDOW_SIZE = 3
 
     # Параметры обучения
     EPOCHS = 20

@@ -16,7 +16,7 @@ from preprocessing.process_wav_to_mel_spectrogram import process_audio_file
 logger = get_logger("full_processing_pipeline")
 
 # Ограничение ресурсов
-MAX_PROCESSES = 4  # Максимальное количество одновременно выполняемых процессов
+MAX_PROCESSES = 1  # Максимальное количество одновременно выполняемых процессов
 
 
 def process_audio_to_spectrograms(raw_file_path: str, config: Config, overlap=0.0):
@@ -38,7 +38,7 @@ def save_spectrogram_metadata(mel_spectrograms, filename, spectrograms_folder, m
     file_metadata = []
     os.makedirs(spectrograms_folder, exist_ok=True)
 
-    for mel_spectrogram in mel_spectrograms:
+    for start_time, mel_spectrogram in mel_spectrograms:
         spectrogram_id = id_manager.get_next_spectrogram_id()
         logger.debug(f"Сохранение спектрограммы {spectrogram_id} из файла {filename}")
         spectrogram_filename = f"spectrogram_{spectrogram_id}.pt"
@@ -52,6 +52,7 @@ def save_spectrogram_metadata(mel_spectrograms, filename, spectrograms_folder, m
             "original_filename": filename,
             "spectrogram_filename": spectrogram_filename,
             "spectrogram_path": os.path.abspath(spectrogram_path),
+            "start_time": start_time,
             "source_type": "o"
         }
         file_metadata.append(segment_metadata)

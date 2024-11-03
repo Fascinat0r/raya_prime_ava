@@ -1,12 +1,13 @@
 import logging
 import time
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 import tqdm
+from sklearn.metrics import confusion_matrix
 from torch import optim
 from torch.utils.data import DataLoader
-from sklearn.metrics import confusion_matrix
 
 from train.pt_utils import restore_model, restore_objects, save_model, save_objects
 from train.triplet_loss.triplet_loss_dataset import MelSpecTripletDataset
@@ -15,6 +16,7 @@ from train.triplet_loss.triplet_loss_model import MelSpecTripletLossNet
 # Настройка логирования
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
 
 # Функция для расчета косинусной дистанции
 def _get_cosine_distance(a, b):
@@ -98,7 +100,7 @@ def test(model, device, test_loader, log_interval=None):
             if log_interval is not None and batch_idx % log_interval == 0:
                 logger.info('{} Test: [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     time.ctime(time.time()), batch_idx * len(ax), len(test_loader.dataset),
-                    100. * batch_idx / len(test_loader), test_loss_on))
+                                             100. * batch_idx / len(test_loader), test_loss_on))
 
     test_loss = np.mean(losses)
     positive_accuracy_mean = 100. * positive_accuracy / len(test_loader.dataset)
@@ -167,11 +169,11 @@ def main():
 
         if test_accuracy > max_accuracy:
             max_accuracy = test_accuracy
-        save_model(model, epoch, model_path)
-        save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
-                      train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
-                     epoch, model_path)
-        logger.info(f'Сохранена модель эпохи {epoch} как контрольная точка.')
+            save_model(model, epoch, model_path)
+            save_objects((epoch, max_accuracy, train_losses, test_losses, train_positive_accuracies,
+                          train_negative_accuracies, test_positive_accuracies, test_negative_accuracies),
+                         epoch, model_path)
+            logger.info(f'Сохранена модель эпохи {epoch} как контрольная точка.')
 
 
 if __name__ == '__main__':
