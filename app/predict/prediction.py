@@ -68,7 +68,7 @@ def main(audio_file, model_path, config):
     model = restore_model(model, model_path, device)
 
     logger.info(f"Обработка аудио файла: {audio_file}")
-    mel_spectrograms = process_audio_to_spectrograms(audio_file, config, overlap=0.9)
+    mel_spectrograms = process_audio_to_spectrograms(audio_file, config, overlap=0.5)
 
     logger.info("Применение модели к сегментам...")
     predictions, start_times = predict_audio_segments(model, device, mel_spectrograms)
@@ -89,8 +89,11 @@ if __name__ == "__main__":
     predictions, start_times = main(audio_file, model_path, config)
     segment_time = config.HOP_LENGTH / 44100
 
+    # Сортируем предсказания по времени
+    predictions, start_times = zip(*sorted(zip(predictions, start_times)))
+
     # Сохраняем предсказания в файл csv
     with open("predictions.csv", "w") as f:
-        f.write("prediction,start_time,end_time\n")
+        f.write("prediction,start_time\n")
         for predictions, start_times in zip(predictions, start_times):
-            f.write(f"{predictions},{start_times},{start_times + segment_time}\n")
+            f.write(f"{predictions},{start_times}\n")

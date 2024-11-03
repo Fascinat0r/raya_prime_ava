@@ -15,16 +15,18 @@ from preprocessing.process_wav_to_mel_spectrogram import process_audio_file
 
 logger = get_logger("full_processing_pipeline")
 
-# Ограничение ресурсов
-MAX_PROCESSES = 1  # Максимальное количество одновременно выполняемых процессов
-
 
 def process_audio_to_spectrograms(raw_file_path: str, config: Config, overlap=0.0):
-    """Обрабатывает аудио-файл до извлечения мел-спектрограмм без записи метаданных."""
-    mel_spectrograms = process_audio_file(raw_file_path, segment_length_seconds=10,
-                                          target_segment_shape=config.SPECTROGRAM_SIZE,
-                                          n_fft=config.N_FFT, hop_length=config.HOP_LENGTH, n_mels=config.N_MELS,
-                                          overlap=overlap)
+    """Обрабатывает аудио-файл до извлечения мел-спектрограмм с использованием новой функции."""
+    mel_spectrograms = process_audio_file(
+        raw_file_path,
+        segment_length_seconds=10,
+        target_segment_shape=config.SPECTROGRAM_SIZE,
+        n_fft=config.N_FFT,
+        hop_length=config.HOP_LENGTH,
+        n_mels=config.N_MELS,
+        overlap=overlap
+    )
     return mel_spectrograms
 
 
@@ -52,7 +54,7 @@ def save_spectrogram_metadata(mel_spectrograms, filename, spectrograms_folder, m
             "original_filename": filename,
             "spectrogram_filename": spectrogram_filename,
             "spectrogram_path": os.path.abspath(spectrogram_path),
-            "start_time": start_time,
+            "start_time": start_time,  # Время теперь правильно рассчитывается в process_audio_file
             "source_type": "o"
         }
         file_metadata.append(segment_metadata)
@@ -73,9 +75,13 @@ def process_file(filename: str, config: Config, id_manager):
     filepath = os.path.join(raw_folder, filename)
     value = os.path.basename(filename)[0]
     overlap = 0.7 if value == "1" else 0.0
+
+    # Обработка аудиофайла и получение списка мел-спектрограмм с их стартовыми временами
     mel_spectrograms = process_audio_to_spectrograms(filepath, config, overlap=overlap)
     if mel_spectrograms is None:
         return None
+
+    # Сохранение спектрограмм и метаданных
     return save_spectrogram_metadata(mel_spectrograms, filename, spectrograms_folder, metadata_file, id_manager)
 
 
@@ -95,7 +101,7 @@ def check_and_augment_data(metadata_file, config):
         logger.info("Данные сбалансированы, аугментация не требуется.")
 
 
-def run_parallel_processing(config, max_processes=MAX_PROCESSES):
+def run_parallel_processing(config):
     spectrograms_folder = config.SPECTROGRAMS_PATH
     metadata_file = config.METADATA_PATH
 
@@ -112,7 +118,7 @@ def run_parallel_processing(config, max_processes=MAX_PROCESSES):
         raw_files = [f for f in os.listdir(config.RAW_FOLDER) if f.endswith(".wav")]
 
         all_metadata = []
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_processes) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=config.MAX_PREPROCESSING_PROCESSES) as executor:
             futures = {executor.submit(process_file, file, config, id_manager): file for file in raw_files}
             for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Обработка файлов"):
                 file_metadata = future.result()

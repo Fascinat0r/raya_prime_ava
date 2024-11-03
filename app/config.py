@@ -38,6 +38,7 @@ class Config:
     SPECTROGRAM_SIZE = (64, 64)
 
     # Параметры для обработки аудио
+    MAX_PREPROCESSING_PROCESSES = 4
     SAMPLE_RATE = 44100
     N_FFT = 2048
     HOP_LENGTH = 512
