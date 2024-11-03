@@ -1,7 +1,7 @@
-import pandas as pd
-from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip
-from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
+from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip
 
 
 def create_scale_image(prediction, width=100, height=500):
@@ -12,20 +12,15 @@ def create_scale_image(prediction, width=100, height=500):
     :param height: Высота шкалы.
     :return: Изображение шкалы как массив numpy.
     """
-    # Создаем изображение шкалы
     scale_image = Image.new("RGB", (width, height), "black")
     draw = ImageDraw.Draw(scale_image)
 
-    # Высота заполненной части шкалы
     filled_height = int(prediction * height)
-
-    # Отрисовка заполненной части
     draw.rectangle([0, height - filled_height, width, height], fill="green")
 
-    # Добавляем текст с текущим значением предсказания
     text = f"{prediction:.2f}"
     font = ImageFont.load_default()
-    text_bbox = draw.textbbox((0, 0), text, font=font)  # Получаем координаты ограничивающего прямоугольника текста
+    text_bbox = draw.textbbox((0, 0), text, font=font)
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
     text_x = (width - text_width) // 2
     text_y = max(height - filled_height - text_height - 5, 5)
@@ -49,16 +44,12 @@ def add_prediction_scale_to_video(video_path, predictions_csv, output_path="outp
 
     # Функция для создания шкалы на каждый кадр
     def make_frame(get_frame, t):
-        # Находим предсказание для текущего времени
-        current_prediction = predictions.loc[
-            (predictions['start_time'] <= t) &
-            (predictions['start_time'] > t - 1 / video.fps), 'prediction'
-        ].values
-
-        prediction_value = current_prediction[0] if len(current_prediction) > 0 else 0.0
+        # Находим ближайшее предсказание по времени
+        predictions['time_diff'] = abs(predictions['start_time'] - t)
+        nearest_prediction = predictions.loc[predictions['time_diff'].idxmin(), 'prediction']
 
         # Создаем изображение шкалы и преобразуем его в ImageClip для MoviePy
-        scale_img = create_scale_image(prediction_value)
+        scale_img = create_scale_image(nearest_prediction)
         scale_clip = ImageClip(scale_img).set_duration(video.duration)
 
         return scale_clip.get_frame(t)
@@ -72,8 +63,9 @@ def add_prediction_scale_to_video(video_path, predictions_csv, output_path="outp
     # Сохраняем результат
     final_video.write_videofile(output_path, codec="libx264")
 
+
 # Пример использования
 if __name__ == "__main__":
-    video_path = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #14 ХАКЕР ГРАБИТЕЛЬ • Майнкрафт.mp4"
+    video_path = "output_segment.mp4"
     predictions_csv = "predictions.csv"
     add_prediction_scale_to_video(video_path, predictions_csv)
