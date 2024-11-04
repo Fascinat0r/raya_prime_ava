@@ -103,7 +103,7 @@ def plot_predictions(data, intervals, merged_intervals, adjusted_intervals, sile
     plt.show()
 
 
-def adjust_intervals_to_silence(voice_intervals, silence_intervals, left_tolerance=0.5, right_tolerance=0.2):
+def adjust_intervals_to_silence(voice_intervals, silence_intervals, left_tolerance=0.7, right_tolerance=0.3, shift=0.1):
     """
     Корректирует интервалы голосовых данных на основе ближайших интервалов тишины.
 
@@ -111,6 +111,7 @@ def adjust_intervals_to_silence(voice_intervals, silence_intervals, left_toleran
     :param silence_intervals: DataFrame с интервалами тишины (колонки 'start_time', 'end_time').
     :param left_tolerance: Максимальное расстояние до ближайшего интервала тишины слева для корректировки начала интервала (в секундах).
     :param right_tolerance: Максимальное расстояние до ближайшего интервала тишины справа для корректировки конца интервала (в секундах).
+    :param shift: Дополнительное смещение интервалов (в секундах) влево для коррекции скольжения.
     :return: Скорректированный список интервалов
     """
     adjusted_intervals = []
@@ -125,7 +126,7 @@ def adjust_intervals_to_silence(voice_intervals, silence_intervals, left_toleran
         nearest_end_silence = silence_starts[(silence_starts >= end) & (silence_starts - end <= right_tolerance)]
 
         # Корректировка начала интервала
-        adjusted_start = nearest_start_silence[-1] if nearest_start_silence.size > 0 else start
+        adjusted_start = nearest_start_silence[-1] if nearest_start_silence.size > 0 else max(0, start - shift)
 
         # Корректировка конца интервала
         adjusted_end = nearest_end_silence[0] if nearest_end_silence.size > 0 else end
