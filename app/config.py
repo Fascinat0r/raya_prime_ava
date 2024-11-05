@@ -1,5 +1,5 @@
 # config.py
-
+# Description: Конфигурационные параметры для проекта.
 import os
 
 

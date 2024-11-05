@@ -1,3 +1,6 @@
+# app/preprocessing/augment.py
+# Description: Модуль для аугментации данных мел-спектрограмм.
+
 import os
 import random
 

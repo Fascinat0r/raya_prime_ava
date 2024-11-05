@@ -1,3 +1,6 @@
+# app/preprocessing/spectral_analysis.py
+# Description: Визуализация мел-спектрограмм с помощью Matplotlib.
+
 import matplotlib.pyplot as plt
 import torch
 

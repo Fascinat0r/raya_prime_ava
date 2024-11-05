@@ -1,3 +1,6 @@
+# app/train/cross_entropy/cross_entropy_dataset.py
+# Description: Класс для загрузки фильтробанок из файлов .npy для обучения модели с функцией потерь Cross Entropy.
+
 import logging
 
 import pandas as pd

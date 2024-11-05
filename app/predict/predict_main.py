@@ -1,3 +1,5 @@
+# app/predict/predict_main.py
+# Description: Основной скрипт для предсказания интервалов речи в аудиофайле.
 from pandas import DataFrame
 
 from config import Config

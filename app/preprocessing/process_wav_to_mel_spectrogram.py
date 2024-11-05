@@ -1,3 +1,6 @@
+# app/preprocessing/process_wav_to_mel_spectrogram.py
+# Description: Преобразует аудиофайлы в мел-спектрограммы и разделяет их на сегменты для обучения модели.
+
 import torch
 import torchaudio
 from torchaudio.transforms import MelSpectrogram

@@ -1,3 +1,6 @@
+# app/predict/prediction.py
+# Description: Модуль для предсказания интервалов речи в аудиофайле с использованием модели на основе MelSpecNet.
+
 import torch
 import torch.nn.functional as F
 from matplotlib import pyplot as plt

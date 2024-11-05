@@ -1,3 +1,6 @@
+# app/predict/interactive_plot.py
+# Description: Визуализация результатов предсказаний с выделением обработанных интервалов используя Plotly.
+
 import pandas as pd
 import plotly.graph_objects as go
 

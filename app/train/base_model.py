@@ -1,3 +1,5 @@
+# app/train/base_model.py
+# Description: Базовая модель для MelSpecNet.
 import logging
 from abc import abstractmethod
 

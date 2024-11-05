@@ -1,3 +1,6 @@
+# app/predict/video_intervals.py
+# Description: Модуль для добавления шкалы предсказания к видеофайлу с использованием MoviePy.
+
 import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont

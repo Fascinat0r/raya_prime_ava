@@ -1,3 +1,6 @@
+# app/preprocessing/full_processing_pipeline.py
+# Description: Полный конвейер обработки данных для создания мел-спектрограмм и метаданных из аудиофайлов.
+
 import concurrent.futures
 import os
 import time

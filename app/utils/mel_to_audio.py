@@ -1,3 +1,5 @@
+# app/utils/mel_to_audio.py
+# Description: Восстановление аудио из мел-спектрограммы.
 import matplotlib.pyplot as plt
 import torchaudio
 from torchaudio.transforms import MelSpectrogram, InverseMelScale, GriffinLim

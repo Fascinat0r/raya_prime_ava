@@ -1,3 +1,6 @@
+# app/preprocessing/id_manager.py
+# Description: Менеджер ID для уникальных идентификаторов мел-спектрограмм.
+
 import os
 
 import pandas as pd

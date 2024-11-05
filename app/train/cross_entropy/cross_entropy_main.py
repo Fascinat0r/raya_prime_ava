@@ -1,3 +1,6 @@
+# app/train/cross_entropy/cross_entropy_main.py
+# Description: Обучение модели с использованием кросс-энтропии.
+
 import logging
 
 import matplotlib.pyplot as plt

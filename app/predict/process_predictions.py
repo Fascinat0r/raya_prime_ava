@@ -1,3 +1,5 @@
+# app/predict/process_predictions.py
+# Description: Модуль для обработки предсказаний модели и корректировки интервалов речи.
 import matplotlib.pyplot as plt
 import pandas as pd
 

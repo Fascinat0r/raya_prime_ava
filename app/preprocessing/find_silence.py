@@ -1,3 +1,6 @@
+# app/preprocessing/find_silence.py
+# Description: Находит интервалы тишины в аудиофайле.
+
 import librosa
 import pandas as pd
 

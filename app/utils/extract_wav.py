@@ -1,3 +1,5 @@
+# app/utils/extract_wav.py
+# Description: Функция для извлечения аудиодорожки из видеофайлов.
 import os
 import subprocess
 

@@ -1,3 +1,6 @@
+# app/train/cross_entropy/cross_entropy_model.py
+# Description: Модель на основе MelSpecNet, которая использует функцию потерь Cross Entropy для классификации.
+
 import logging
 
 from torch import nn

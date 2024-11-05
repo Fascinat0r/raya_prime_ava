@@ -1,3 +1,5 @@
+# app/predict/split_audio.py
+# Description: Модуль для разделения аудиофайла на два: куски, находящиеся внутри и вне указанных интервалов.
 import librosa
 import numpy as np
 import pandas as pd

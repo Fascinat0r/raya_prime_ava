@@ -1,3 +1,5 @@
+# app/train/split_data.py
+# Description: Функция для разделения мел-спектрограмм на тренировочную и тестовую выборки с равным соотношением значений value.
 import os
 
 import pandas as pd

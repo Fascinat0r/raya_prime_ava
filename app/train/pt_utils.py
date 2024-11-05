@@ -1,3 +1,5 @@
+# app/train/pt_utils.py
+# Description: Вспомогательные функции для сохранения и восстановления моделей и объектов.
 import glob
 import os
 import pickle

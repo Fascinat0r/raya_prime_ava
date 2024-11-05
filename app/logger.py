@@ -1,3 +1,5 @@
+# app/logger.py
+# Description: Настройка логгера для записи логов в файл и вывода в консоль.
 import logging
 import os
 
