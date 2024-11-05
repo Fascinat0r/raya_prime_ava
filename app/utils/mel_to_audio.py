@@ -5,7 +5,7 @@ from torchaudio.transforms import MelSpectrogram, InverseMelScale, GriffinLim
 # Загружаем аудио WAV файл
 waveform, sample_rate = torchaudio.load("data/raw/example.wav")
 
-# Преобразование в мел-спектрограмму с улучшенными параметрами
+# Преобразование в мел-спектрограмму
 mel_spectrogram_transform = MelSpectrogram(
     sample_rate=sample_rate,
     n_fft=2048,  # Увеличенное разрешение частоты

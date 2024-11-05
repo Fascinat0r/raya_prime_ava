@@ -53,11 +53,10 @@ def plot_predictions(predictions):
     plt.show()
 
 
-def main(audio_file, model_path, config):
+def make_prediction(audio_file, config: Config):
     """
     Основная функция для обработки аудио файла и применения модели для предсказания.
     :param audio_file: Путь к аудио файлу.
-    :param model_path: Путь к сохраненной модели.
     :return: Обработанные интервалы.
     """
     use_cuda = torch.cuda.is_available()
@@ -65,7 +64,7 @@ def main(audio_file, model_path, config):
     logger.info(f"Используемое устройство: {device}")
 
     model = MelSpecCrossEntropyNet(reduction='mean').to(device)
-    model = restore_model(model, model_path, device)
+    model = restore_model(model, config.MODEL_PATH, device)
 
     logger.info(f"Обработка аудио файла: {audio_file}")
     mel_spectrograms = process_audio_to_spectrograms(audio_file, config, overlap=0.9)
@@ -83,17 +82,17 @@ def main(audio_file, model_path, config):
 
 if __name__ == "__main__":
     # Пример использования
-    audio_file = "output_segment.wav"
+    audio_file = "D:\\4K_Video_Downloader\\Lp  Идеальный Мир · Майнкрафт\\Lp. Идеальный МИР #64 ТАЙНЫЙ КУРЬЕР • Майнкрафт.wav"
     model_path = "../train/weights/"  # Путь к папке с моделью
     config = Config()
-    predictions, start_times = main(audio_file, model_path, config)
+    predictions, start_times = make_prediction(audio_file, model_path, config)
     segment_time = config.HOP_LENGTH / 44100
 
     # Сортируем предсказания по времени
     # predictions, start_times = zip(*sorted(zip(predictions, start_times)))
 
     # Сохраняем предсказания в файл csv
-    with open("predictions.csv", "w") as f:
+    with open("data/predictions.csv", "w") as f:
         f.write("prediction,start_time\n")
         for predictions, start_times in zip(predictions, start_times):
             f.write(f"{predictions},{start_times}\n")

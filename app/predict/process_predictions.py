@@ -5,11 +5,8 @@ from config import Config  # Импорт конфигурационного ф�
 from preprocessing.find_silence import detect_silence_intervals
 
 
-def process_predictions(file_path, config):
+def process_predictions(data, config):
     try:
-
-        # Загружаем предсказания
-        data = pd.read_csv(file_path)
 
         # Проверка наличия нужного столбца
         if 'prediction' not in data.columns or 'start_time' not in data.columns:
@@ -141,12 +138,16 @@ def adjust_intervals_to_silence(voice_intervals, silence_intervals, left_toleran
 
 if __name__ == "__main__":
     config = Config()
-    file_path = "predictions.csv"
-    data, intervals, merged_intervals = process_predictions(file_path, config)
+    file_path = "data/predictions.csv"
+
+    # Загружаем предсказания
+    data = pd.read_csv(file_path)
+
+    data, intervals, merged_intervals = process_predictions(data, config)
     if data is None:
         print("Ошибка при обработке предсказаний.")
 
-    silence_intervals = detect_silence_intervals("output_segment.wav")
+    silence_intervals = detect_silence_intervals("data/output_segment.wav")
 
     adjusted_intervals = adjust_intervals_to_silence(merged_intervals, silence_intervals)
 
@@ -156,7 +157,7 @@ if __name__ == "__main__":
     plot_predictions(data, intervals, merged_intervals, adjusted_intervals, silence_intervals)
 
     # Сохраняем обработанные интервалы в файл CSV
-    with open("processed_intervals.csv", "w") as f:
+    with open("data/processed_intervals.csv", "w") as f:
         f.write("start_time,end_time\n")
         for start, end in adjusted_intervals:
             f.write(f"{start},{end}\n")

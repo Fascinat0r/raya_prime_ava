@@ -66,6 +66,6 @@ def add_prediction_scale_to_video(video_path, predictions_csv, output_path="outp
 
 # Пример использования
 if __name__ == "__main__":
-    video_path = "output_segment.mp4"
+    video_path = "data/output_segment.mp4"
     predictions_csv = "predictions.csv"
     add_prediction_scale_to_video(video_path, predictions_csv)

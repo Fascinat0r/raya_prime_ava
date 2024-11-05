@@ -61,4 +61,4 @@ def split_audio_by_intervals(audio_path, intervals_path, target_output="target_a
 
 # Пример использования
 if __name__ == "__main__":
-    split_audio_by_intervals("output_segment.wav", "processed_intervals.csv")
+    split_audio_by_intervals("data/output_segment.wav", "data/processed_intervals.csv")
